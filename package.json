@@ -1,0 +1,61 @@
+{
+  "name": "dsh-apple-hig",
+  "version": "0.6.0",
+  "type": "module",
+  "description": "按 Apple 人机界面规范（HIG）校正 DSH 界面的插件：焦点环可见性与文字对比度、字体族与字重下限、控件材质与连续圆角、间距节奏、顶栏分段控件、控件行与底部读数行统一、侧栏行高与命中区、侧栏收展与换会话动画。纯 token + CSS 叠加，每档独立开关，卸载即恢复。",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "apple",
+    "hig",
+    "design",
+    "accessibility"
+  ],
+  "license": "MIT",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "tools/contrast.mjs",
+    "README.md",
+    "LICENSE",
+    "install.mjs",
+    "test/boot-smoke.mjs",
+    "tools/palette.json"
+  ],
+  "dsh": {
+    "client": {
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "engines": {
+      "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node test/boot-smoke.mjs",
+    "check:contrast": "node tools/contrast.mjs"
+  },
+  "author": "Ne_Rn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yu-jianhai/dsh-apple-hig.git"
+  },
+  "homepage": "https://github.com/Yu-jianhai/dsh-apple-hig#readme",
+  "bugs": {
+    "url": "https://github.com/Yu-jianhai/dsh-apple-hig/issues"
+  }
+}

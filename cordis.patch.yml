@@ -1,0 +1,8 @@
+# dsh-apple-hig —— bundle patch
+#
+# 只插入一条宿主入口。界面全部来自 lib/client.js（web 侧 token 覆盖 + 样式注入
+# + 设置分区），宿主半边是空操作（见 lib/index.js）。没有配置项：偏好落在
+# 浏览器 localStorage（键 dsh-apple-hig:v1），设置页里逐个开关。
+- insert:
+    - id: dsh-apple-hig
+      name: dsh-apple-hig
