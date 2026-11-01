@@ -4,10 +4,10 @@
 不改宿主代码、不碰功能布局、每一档都能单独关掉，卸载即完全还原。
 
 - 仓库：<https://github.com/Yu-jianhai/dsh-apple-hig>
-- 版本：0.6.0
+- 版本：0.6.1
 - 作用面：客户端（`module.exports.inject: ['slots','theme']`）；宿主半边是空操作
 - 范围：方案里的 **L0（token）+ L1（排版）+ L2（材质与形状）+ L3（布局）**
-- v0.2.0 起 L2 三档（材质 / 圆角 / 间距节奏）默认开；v0.3.0 起 L3 两档（顶栏与分段标签 / 阅读宽度）默认开；v0.4.0 起底部读数行与输入卡控件行统一（默认开）；v0.5.0 起侧栏（行高/时间戳/命中区/选中态/用量卡数字）也纳入（默认开）；v0.6.0 起切换动画（侧栏收展缓动 + 换会话进场）（默认开）
+- v0.2.0 起 L2 三档（材质 / 圆角 / 间距节奏）默认开；v0.3.0 起 L3 两档（顶栏与分段标签 / 阅读宽度）默认开；v0.4.0 起底部读数行与输入卡控件行统一（默认开）；v0.5.0 起侧栏（行高/时间戳/命中区/选中态/用量卡数字）也纳入（默认开）；v0.6.0 起切换动画（侧栏收展缓动 + 换会话进场）（默认开）；v0.6.1 修掉 v0.6.0 引入的「模型位 High 被裁」——芯片行行高从 `1` 改成 18px，并让推理档位不参与收缩
 
 ---
 
@@ -33,7 +33,7 @@
 | 16 | **视图标签 → 分段控件（看得见）** | 下划线式：5 个文字标签、`gap:32px`、选中项靠 `:after` 2px 主色条 | `role=tablist` 容器做成浅色轨道（`radius-md` + 3px 内边距 + `.5px` 内描边），选中项浮起（`radius-sm` + `bg-base` + 1px 投影），去掉下划线 | HIG：macOS 里同级视图切换用 **segmented control**；只动样式，`role`/`aria-selected`/键盘导航全部保留 |
 | 17 | **阅读宽度对齐（看得见）** | 正文 `min(calc(100% - 32px), 920px)`、输入卡 `min(calc(100% - 16px), 952px)` —— 两个宽度不同，边缘对不齐 | 两者统一 `min(calc(100% - 40px), 780px)` + 卡片 `margin-inline:auto` | HIG Layout：内容与控件对齐；单栏阅读宽度收在舒适范围 |
 | 18 | **底部读数行统一（看得见）** | 输入卡下方那条（`3 轮 305 步 · 195 tok/s ｜费用明细｜41M tok · 缓存命中 99%｜本会话 ¥…·命中…·输入…·缓存…·输出… ｜◔17%`）其实在 `[data-composer-dock]` 里，来自三个来源、各写一套：宿主统计药丸 `font-size:calc(13px - 1px)`·`label-tertiary`·`padding:1px 8px`；cost meter 的「费用明细」是实底灰药丸、`.cm-session-cost` 11px 挤成一行；上下文环无字 | 容器 `gap:10px`·`padding:6px 2px 0`·12px·20px 行高·`label-secondary`·`tabular-nums`；统计药丸与「费用明细」同为 12px 幽灵按钮（20px 高、`radius-sm`、hover 才出淡底）；会话费用 12px，金额次级色、明细三级色 | HIG Typography：同一处读数用同一套字号字重；HIG Layout：靠对齐与留白分组。**顺带纠正一个事实**：`[data-shell-bottom]` 只渲染 `shell.bottom` 槽，desktop profile 无人注册 → 是空行，原第 6 项的「状态栏降存在感」一直打在空盒子上 |
-| 19 | **控件行统一（看得见）** | 输入卡下面那排芯片四个来源四种盒型：「古籍」28px 高·1px 实线·`radius 8`·`opacity .72`；「记忆·智能」视觉 24px·无底无边·开启走 `border-image` 流光；「专家」纯文字 13px 无描边；「完全权限」「模型」宿主自己的槽 | 统一 26px 高·`padding 0 9px`·`radius-sm`·12px/500·`gap 5px`·`inline-flex` 居中；「古籍」描边 1px→0.5px 且 `opacity` 归 1；「专家」补 0.5px 淡描边；「+」固定 26×26 | HIG：同类职责的控件共用几何与字重，差别只体现在状态色。**只统一盒子与字体，不碰各插件强调色** —— 强调色表达状态（古籍开启、记忆流光、权限等级），统一掉反而丢信息 |
+| 19 | **控件行统一（看得见）** | 输入卡下面那排芯片四个来源四种盒型：「古籍」28px 高·1px 实线·`radius 8`·`opacity .72`；「记忆·智能」视觉 24px·无底无边·开启走 `border-image` 流光；「专家」纯文字 13px 无描边；「完全权限」「模型」宿主自己的槽 | 统一 26px 高·`padding 0 9px`·`radius-sm`·12px/500·**行高 18px**·`gap 5px`·`inline-flex` 居中；「古籍」描边 1px→0.5px 且 `opacity` 归 1；「专家」补 0.5px 淡描边；「+」固定 26×26 | HIG：同类职责的控件共用几何与字重，差别只体现在状态色。**只统一盒子与字体，不碰各插件强调色** —— 强调色表达状态（古籍开启、记忆流光、权限等级），统一掉反而丢信息 |
 | 20 | **侧栏行高与命中区（看得见）** | 同一块侧栏四档行高：会话行 32px、文件夹行 34px、顶部导航行 `min-height:36px`、分组头 36px；时间戳 `font-size:10px`·`line-height:16px`（全侧栏最小字）；行内动作按钮 16×16（命中区）；选中 `.selected{background:var(--dsw-alias-interactive-bg-hover)}` **与 hover 同色**；cost meter 用量卡分隔线 `1px`（宿主其它分界线都是 `.5px`） | 行统一 34px、导航行 36→34px；时间戳 10→11px + `tabular-nums`；行内动作 16→24px 命中区（图标仍 16）；选中改主色 9% 底 + `.5px` 内描边、hover 12%；用量卡分隔线 `1px→.5px`、卡片顶部留白 8→10px、今日两值统一 12px/18px + `tabular-nums` | HIG Layout：同一列表内行高一致，分组用留白而非行高；HIG Accessibility：可点区域不小于 24×24；HIG Typography：最小字号不低于 11px，数字用等宽字形避免扫读跳动；选中态必须与悬停态可区分 |
 | 21 | **切换动画（看得见）** | 侧栏收展：宿主自带 `.frame[data-animating]{transition:grid-template-columns .3s var(--ds-ease-in-out)}`，用的是通用 ease-in-out，起步收尾一样快、中段发木；换会话：主区内容不换 DOM 节点，只改 `[data-conversation-session]` 的值，CSS 感知不到，等于**硬切** | 侧栏收展改 `.34s cubic-bezier(.32,.72,0,1)`（快起慢收），仅在宿主标记 `[data-animating]` 且非拖动时生效（窗口缩放不跟着动画）；换会话时由 MutationObserver 给内容节点打 `data-ahig-enter`，触发 `.22s` 的淡入 + 上移 6px | HIG Motion：动画要有目的、短暂精确、别让人等；常用交互不必加动效，**切换上下文**是例外——它需要让人知道「内容换了」。只监听 `data-conversation-session` 一个属性，不监听 childList，避免流式输出时每帧回调（这台机器专门查过空闲 CPU） |
 

@@ -197,6 +197,10 @@ ok(styleEls.length === 1, '注入了一个样式表', String(styleEls.length))
   const css = String(styleEls[0].textContent || '')
   ok(css.includes('[data-composer-dock]'), '样式表命中底部读数行真实容器（v0.4.0）')
   ok(css.includes('html[data-ahig-chips="1"]'), '样式表含控件行统一段（v0.4.0）')
+  ok(
+    css.includes('_triggerEffort') && !/line-height:1!important/.test(css),
+    '模型位推理档位不被裁：有 _triggerEffort 规则且不再用 line-height:1（v0.6.1）',
+  )
   ok(css.includes('.dsh-mem-pill-hit') && css.includes('.dslt-btn'), '控件行统一覆盖记忆/古籍两个第三方芯片')
   ok(
     css.includes('html[data-ahig-sidebar="1"] [data-slot="sidebar"]'),
