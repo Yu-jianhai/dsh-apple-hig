@@ -316,7 +316,7 @@ ok(cssText.includes('.ahig-drag-card'), '样式表里有浮卡')
 ok(cssText.includes('.ahig-drag-ph'), '样式表里有灰块')
 ok(cssText.includes('data-ahig-ph="dashed"'), '灰块有三种形态之一（虚线空槽）')
 ok(cssText.includes('data-ahig-dragging'), '被拿起的行会藏起来')
-ok(cssText.includes('_dropBefore'), '宿主落点线在我们拖拽时隐藏')
+ok(!/_dropBefore[^;]*opacity:0/.test(cssText), '宿主落点线保留，不再被我们隐藏')
 
 // token 形状：必须成对给 light/dark（裸字符串会 throw）
 const focus = overrideCalls.find((c) => c.source === 'apple-hig/focus-ring')
