@@ -38,10 +38,11 @@ const html = {
 }
 const styleEls = []
 const docListeners = []
+const bodyEls = [] // v0.7.4 诊断浮层挂到 body，这里记下来
 const documentStub = {
   documentElement: html,
   head: { appendChild: (el) => styleEls.push(el) },
-  body: { appendChild: () => {} },
+  body: { appendChild: (el) => bodyEls.push(el) },
   /* v0.7.0 的拖拽层：只登记 capture 监听，断言「开开关挂上、关开关摘干净」 */
   addEventListener: (type, fn, capture) => docListeners.push({ type, fn, capture }),
   removeEventListener: (type, fn, capture) => {
@@ -296,6 +297,20 @@ for (const t of ['dragstart', 'dragover', 'drop', 'dragend']) {
   ok(dragTypes.includes(t), '挂了 ' + t + ' 的 capture 监听')
 }
 ok(attrs.get('data-ahig-drag') === '1', '拖拽开关默认开')
+ok(
+  docListeners.some((x) => x.type === 'pointerdown'),
+  'v0.7.4 探针挂了 pointerdown（用来区分「没按到行」和「按了不起拖拽」）',
+)
+ok(globalThis.window.dshAppleHig.get().probe === true, '诊断浮层默认开')
+ok(
+  bodyEls.some((el) => el.id === 'ahig-probe'),
+  '诊断浮层挂到了 body',
+)
+const probeEl = bodyEls.find((el) => el.id === 'ahig-probe')
+ok(
+  probeEl && String(probeEl.textContent).includes('AHIG 拖拽探针'),
+  '诊断浮层有标题（说明代码真的跑到这里）',
+)
 const cssText = String(styleEls[0].textContent || '')
 ok(cssText.includes('.ahig-drag-card'), '样式表里有浮卡')
 ok(cssText.includes('.ahig-drag-ph'), '样式表里有灰块')
@@ -340,6 +355,11 @@ const dragPrefs = globalThis.window.dshAppleHig.get()
 ok(dragPrefs.dragStyle === 'solid', '灰块默认实块')
 ok(dragPrefs.dragBounce === true, '吸附默认轻回弹')
 globalThis.window.dshAppleHig.set({ drag: true })
+
+// 探针关掉要自己摘掉，不留常驻节点
+globalThis.window.dshAppleHig.set({ probe: false })
+ok(!bodyEls.some((el) => el.id === 'ahig-probe' && el.isConnected), '关掉诊断浮层后节点已移除')
+globalThis.window.dshAppleHig.set({ probe: true })
 
 globalThis.window.dshAppleHig.set({ transition: false })
 ok(attrs.get('data-ahig-transition') === '0', '切换动画开关已关')
