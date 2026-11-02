@@ -37,9 +37,18 @@ const html = {
   dataset: {},
 }
 const styleEls = []
+const docListeners = []
 const documentStub = {
   documentElement: html,
   head: { appendChild: (el) => styleEls.push(el) },
+  body: { appendChild: () => {} },
+  /* v0.7.0 的拖拽层：只登记 capture 监听，断言「开开关挂上、关开关摘干净」 */
+  addEventListener: (type, fn, capture) => docListeners.push({ type, fn, capture }),
+  removeEventListener: (type, fn, capture) => {
+    const i = docListeners.findIndex((x) => x.type === type && x.fn === fn && x.capture === capture)
+    if (i >= 0) docListeners.splice(i, 1)
+  },
+  querySelector: () => null,
   createElement: () => {
     const el = {
       isConnected: true,
@@ -281,6 +290,19 @@ ok(
 )
 ok(registered.length === 1 && registered[0].name === 'settings.section', '注册了设置分区')
 
+// v0.7.0 拖拽层：默认开、四个 capture 监听都在
+const dragTypes = docListeners.map((x) => x.type)
+for (const t of ['dragstart', 'dragover', 'drop', 'dragend']) {
+  ok(dragTypes.includes(t), '挂了 ' + t + ' 的 capture 监听')
+}
+ok(attrs.get('data-ahig-drag') === '1', '拖拽开关默认开')
+const cssText = String(styleEls[0].textContent || '')
+ok(cssText.includes('.ahig-drag-card'), '样式表里有浮卡')
+ok(cssText.includes('.ahig-drag-ph'), '样式表里有灰块')
+ok(cssText.includes('data-ahig-ph="dashed"'), '灰块有三种形态之一（虚线空槽）')
+ok(cssText.includes('data-ahig-dragging'), '被拿起的行会藏起来')
+ok(cssText.includes('_dropBefore'), '宿主落点线在我们拖拽时隐藏')
+
 // token 形状：必须成对给 light/dark（裸字符串会 throw）
 const focus = overrideCalls.find((c) => c.source === 'apple-hig/focus-ring')
 const pair = focus && focus.tokens['--dsw-focus-ring-color']
@@ -305,6 +327,20 @@ ok(!afterSources.some((s) => s.startsWith('apple-hig/font-')), 'off 预设不再
 ok(!afterSources.includes('apple-hig/radius'), '关掉圆角后不再建该层')
 
 console.log('\n关切换动画 → 监听器应随之撤掉')
+
+// 拖拽层：关掉开关要把四个 capture 监听摘干净，且默认值是实块 + 轻回弹
+console.log('\n关拖拽 → capture 监听应随之撤掉')
+const DRAG_TYPES = ['dragstart', 'dragover', 'drop', 'dragend']
+const beforeDrag = docListeners.filter((x) => DRAG_TYPES.includes(x.type)).length
+ok(beforeDrag === 4, '开着的拖拽层有 4 个 capture 监听')
+globalThis.window.dshAppleHig.set({ drag: false })
+ok(docListeners.filter((x) => DRAG_TYPES.includes(x.type)).length === 0, '关掉拖拽后监听全撤')
+ok(attrs.get('data-ahig-drag') === '0', '关掉后属性为 0')
+const dragPrefs = globalThis.window.dshAppleHig.get()
+ok(dragPrefs.dragStyle === 'solid', '灰块默认实块')
+ok(dragPrefs.dragBounce === true, '吸附默认轻回弹')
+globalThis.window.dshAppleHig.set({ drag: true })
+
 globalThis.window.dshAppleHig.set({ transition: false })
 ok(attrs.get('data-ahig-transition') === '0', '切换动画开关已关')
 ok(observers.every((o) => o.disconnected), '关掉开关后不再留常驻监听')

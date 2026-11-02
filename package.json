@@ -1,8 +1,8 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
-  "description": "按 Apple 人机界面规范（HIG）校正 DSH 界面的插件：焦点环可见性与文字对比度、字体族与字重下限、控件材质与连续圆角、间距节奏、顶栏分段控件、控件行与底部读数行统一、侧栏行高与命中区、侧栏收展与换会话动画。纯 token + CSS 叠加，每档独立开关，卸载即恢复。",
+  "description": "L0–L3 + 会话树拖拽重排（表现层）的 Apple HIG 校正层",
   "keywords": [
     "deepseek-harness",
     "dsh",
