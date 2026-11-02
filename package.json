@@ -1,8 +1,8 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.7.10",
+  "version": "0.8.0",
   "type": "module",
-  "description": "L0–L3 + 会话树拖拽重排（表现层）的 Apple HIG 校正层",
+  "description": "L0–L3 + 会话区拖拽重排（表现层，纯核心可单测）的 Apple HIG 校正层",
   "keywords": [
     "deepseek-harness",
     "dsh",
@@ -31,7 +31,9 @@
     "test/boot-smoke.mjs",
     "tools/palette.json",
     "test/run-drag-fixture.mjs",
-    "test/drag-fixture.html"
+    "test/drag-fixture.html",
+    "DRAG-ENGINE.md",
+    "test/unit-drag-core.mjs"
   ],
   "dsh": {
     "client": {
@@ -50,7 +52,10 @@
   "scripts": {
     "check": "node test/boot-smoke.mjs",
     "check:contrast": "node tools/contrast.mjs",
-    "test:drag": "node test/run-drag-fixture.mjs"
+    "test:drag": "node test/run-drag-fixture.mjs",
+    "test:unit": "node test/unit-drag-core.mjs",
+    "test:boot": "node test/boot-smoke.mjs",
+    "test": "node test/unit-drag-core.mjs && node test/boot-smoke.mjs && node test/run-drag-fixture.mjs"
   },
   "author": "Ne_Rn",
   "repository": {
