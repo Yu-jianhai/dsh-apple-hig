@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AHIG 拖拽层 · 真实 bundle 夹具</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #121212; color: #f9fafb; font: 14px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 264px; flex: 0 0 264px; background: #1e1e24; border-right: .5px solid rgba(255,255,255,.1); }
+  .tree-scroll { height: 100vh; overflow-y: auto; padding: 6px 12px; }
+  .group-head { height: 36px; display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #cfd3d6; font-size: 13px; }
+  .hc { display: block; }
+  .row { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; margin-bottom: 2px; }
+  .row .title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .time { color: #81858c; font-size: 11px; }
+  .overflow { height: 30px; display: flex; align-items: center; padding-left: 8px; color: #81858c; font-size: 12px; }
+  .main { flex: 1 1 auto; padding: 24px; color: #adb2b8; font-size: 13px; }
+  pre { background: #1b1b1c; padding: 10px; border-radius: 8px; white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="tree-scroll">
+      <!-- 真实宿主里 renderSlot("sidebar") 产出 display:contents 锚点 -->
+      <div data-slot="sidebar" style="display:contents"></div>
+    </div>
+  </div>
+  <div class="main">
+    <h3>真实 bundle 夹具</h3>
+    <p>会话行按宿主真实结构渲染：每个 <code>div[data-row-key]</code> 被 HoverCard 的 <code>span</code> 包一层，共两组。</p>
+    <pre id="out">running…</pre>
+  </div>
+</div>
+
+<script>
+  const groups = [
+    { name: '生成个插件', ids: ['a1', 'a2', 'a3', 'a4'], overflow: true },
+    { name: '学习', ids: ['b1', 'b2', 'b3'], overflow: false },
+  ]
+  const anchor = document.querySelector('[data-slot="sidebar"]')
+  const frag = document.createDocumentFragment()
+  for (const g of groups) {
+    const gd = document.createElement('div')
+    gd.className = 'group'
+    const head = document.createElement('div')
+    head.className = 'group-head'
+    head.textContent = g.name
+    gd.appendChild(head)
+    for (const id of g.ids) {
+      const wrap = document.createElement('span')   // HoverCard 的 span 包装层
+      wrap.className = 'hc'
+      const row = document.createElement('div')
+      row.className = 'row'
+      row.dataset.rowKey = 'session:' + id
+      row.setAttribute('role', 'treeitem')
+      row.draggable = true
+      const t = document.createElement('span')
+      t.className = 'title'
+      t.textContent = '会话 ' + id
+      const tm = document.createElement('span')
+      tm.className = 'time'
+      tm.textContent = '1 小时'
+      row.append(t, tm)
+      wrap.appendChild(row)
+      gd.appendChild(wrap)
+    }
+    if (g.overflow) {
+      const ov = document.createElement('div')
+      ov.className = 'overflow'
+      ov.textContent = '展开其余 3 个会话'
+      gd.appendChild(ov)
+    }
+    frag.appendChild(gd)
+  }
+  anchor.appendChild(frag)
+
+  const ReactStub = {
+    createElement: () => null,
+    Component: class { constructor(p) { this.props = p } setState() {} },
+  }
+  const log = []
+  window.__ModuleLoader__ = { load: (def) => { window.__def = def } }
+</script>
+<script src="../lib/client.js"></script>
+<script>
+  const req = (id) => (id === 'react' ? ReactStub : ({}))
+  const exp = window.__def.factory(req)
+  const registered = []
+  const ctx = {
+    slots: {
+      register: (spec) => { registered.push(spec); return () => {} },
+      inject: (name, factory) => { try { for (const _ of factory()) break } catch (e) { log.push('inject throw: ' + e.message) } },
+    },
+    theme: {
+      getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
+      overrideTokens: () => () => {},
+    },
+    effect: (fn) => { fn() },
+  }
+  try { exp.apply(ctx) } catch (e) { log.push('apply throw: ' + e.message + ' @' + (e.stack||'').split(String.fromCharCode(10))[1]) }
+
+  const out = document.getElementById('out')
+  const rows = () => [...document.querySelectorAll('[data-row-key^="session:"]')]
+  const rect = (el) => el.getBoundingClientRect()
+  const phY = () => { const el = document.querySelector('.ahig-drag-ph'); if (!el) return -1; const m = String(el.style.transform || '').match(/translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px/); return m ? Math.round(Number(m[2])) : -1 }
+
+  function makeDT() { return new DataTransfer() }
+
+  function fire(type, el, y, x) {
+    const ev = new DragEvent(type, { bubbles: true, cancelable: true, clientX: x === undefined ? 120 : x, clientY: y, dataTransfer: makeDT() })
+    el.dispatchEvent(ev)
+    return ev
+  }
+
+  const results = []
+  const ok = (cond, name, extra) => results.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' — ' + extra : ''))
+
+  // 所有状态变更都在事件处理里同步完成，transition 只影响观感 → 可以一口气跑完
+  try {
+  const rs = rows()
+  ok(rs.length === 7, '行数=7', 'got ' + rs.length)
+  const ph = () => document.querySelector('.ahig-drag-ph')
+  const card = () => document.querySelector('.ahig-drag-card')
+
+  fire('dragstart', rs[0], rect(rs[0]).top + 20)
+  ok(!!ph(), '起拖后有灰块')
+  ok(!!card() && card().classList.contains('on'), '起拖后有浮卡且可见')
+
+  fire('dragover', rs[2], rect(rs[2]).top + 10)
+  const ph1 = phY()
+  ok(Math.abs(ph1 - rect(rs[2]).top) < 8, '灰块跟到组一第 3 行', 'ph=' + Math.round(ph1) + ' target=' + Math.round(rect(rs[2]).top))
+
+  // 行让位：源行 0 -> 目标 2，第 1、2 行应各上移一格（33px 左右）
+  const dy1 = rs[1].style.transform
+  ok(/translateY\(-3\d/.test(dy1), '第 2 行让位（上移一格）', 'style="' + dy1 + '"')
+
+  // 跨组：拖到第二组第 1 行，slot 夹在组一末尾，灰块不越界
+  fire('dragover', rs[4], rect(rs[4]).top + 4)
+  const ph2 = phY()
+  const g1last = rect(rs[3]).bottom
+  ok(ph2 <= g1last + 8, '灰块不越出组一', 'ph=' + Math.round(ph2) + ' g1lastBottom=' + Math.round(g1last))
+
+  // 换到组二内部第 2 行：应当能进组二
+  fire('dragover', rs[5], rect(rs[5]).top + 10)
+  const ph3 = phY()
+  ok(Math.abs(ph3 - rect(rs[5]).top) < 8 || ph3 > g1last, '跨组时落点不回卷到组一（仅记录）', 'ph=' + Math.round(ph3))
+
+  } catch (e) { results.push('FAIL 抛异常: ' + e.message + ' @' + (e.stack||'').split(String.fromCharCode(10))[1]) }
+  out.textContent = results.join('\n') + '\n\nlog: ' + (log.join(' | ') || '-')
+  document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
+  window.__fixture = { results }
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "type": "module",
   "description": "L0–L3 + 会话树拖拽重排（表现层）的 Apple HIG 校正层",
   "keywords": [
@@ -29,7 +29,9 @@
     "LICENSE",
     "install.mjs",
     "test/boot-smoke.mjs",
-    "tools/palette.json"
+    "tools/palette.json",
+    "test/run-drag-fixture.mjs",
+    "test/drag-fixture.html"
   ],
   "dsh": {
     "client": {
@@ -47,7 +49,8 @@
   },
   "scripts": {
     "check": "node test/boot-smoke.mjs",
-    "check:contrast": "node tools/contrast.mjs"
+    "check:contrast": "node tools/contrast.mjs",
+    "test:drag": "node test/run-drag-fixture.mjs"
   },
   "author": "Ne_Rn",
   "repository": {
