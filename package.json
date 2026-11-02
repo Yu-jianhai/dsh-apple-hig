@@ -1,6 +1,6 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "type": "module",
   "description": "L0–L3 + 会话树拖拽重排（表现层）的 Apple HIG 校正层",
   "keywords": [
