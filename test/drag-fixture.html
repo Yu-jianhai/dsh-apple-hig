@@ -157,6 +157,24 @@
   const g1last = rect(rs[3]).bottom
   ok(ph2 <= g1last + 8, '灰块不越出组一', 'ph=' + Math.round(ph2) + ' g1lastBottom=' + Math.round(g1last))
 
+  // 组二的行往上拖：分组边界按宿主的 section 祖先判定，灰块不许跨进组一
+  fire('dragstart', rs[4], rect(rs[4]).top + 20)
+  fire('dragover', rs[1], rect(rs[1]).top + 10)
+  const ph4 = phY()
+  ok(ph4 >= rect(rs[4]).top - 8, '组二的行不能拖进组一', 'ph=' + Math.round(ph4) + ' g2first=' + Math.round(rect(rs[4]).top))
+
+  // 松手吸附：目标必须是灰块此刻的实际矩形（不是按公式重算的）
+  fire('dragover', rs[5], rect(rs[5]).top + 10)
+  const phLive = document.querySelector('.ahig-drag-ph').getBoundingClientRect()
+  fire('drop', rs[5], rect(rs[5]).top + 10)
+  const ft = String((card() && card().style.transform) || '')
+  const fm = ft.match(/translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px/)
+  ok(
+    !!fm && Math.abs(Number(fm[1]) - phLive.left) < 2 && Math.abs(Number(fm[2]) - phLive.top) < 2,
+    '松手吸附到灰块实际位置',
+    fm ? 'float=' + fm[1] + ',' + fm[2] + ' ph=' + Math.round(phLive.left) + ',' + Math.round(phLive.top) : 'no transform',
+  )
+
   // 换到组二内部第 2 行：应当能进组二
   fire('dragover', rs[5], rect(rs[5]).top + 10)
   const ph3 = phY()
