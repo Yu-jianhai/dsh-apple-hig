@@ -12,7 +12,7 @@
   .tree-scroll { height: 100vh; overflow-y: auto; padding: 6px 12px; }
   .group-head { height: 36px; display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #cfd3d6; font-size: 13px; }
   .hc { display: block; }
-  .row { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; margin-bottom: 2px; }
+  .row { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; padding-inline-start: calc(8px + var(--dsh-workspace-indent, 0px)); border-radius: 8px; margin-bottom: 2px; }
   .row .title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .time { color: #81858c; font-size: 11px; }
   .overflow { height: 30px; display: flex; align-items: center; padding-left: 8px; color: #81858c; font-size: 12px; }
@@ -45,6 +45,7 @@
   for (const g of groups) {
     const gd = document.createElement('div')
     gd.className = 'group'
+    gd.style.setProperty('--dsh-workspace-indent', '12px')
     const head = document.createElement('div')
     head.className = 'group-head'
     head.textContent = g.name
@@ -128,6 +129,19 @@
   fire('dragstart', rs[0], rect(rs[0]).top + 20)
   ok(!!ph(), '起拖后有灰块')
   ok(!!card() && card().classList.contains('on'), '起拖后有浮卡且可见')
+
+  // 文字错位回归：克隆到浮卡后，左缩进变量会失效（宿主把它挂在分组 section 上），
+  // 必须在克隆时把行上实测的排版抄成内联。
+  const cardEl = card()
+  const cardTitle = cardEl && cardEl.querySelector('.title')
+  const srcTitle = rs[0].querySelector('.title')
+  if (cardTitle && srcTitle) {
+    const cardOff = Math.round(rect(cardTitle).left - rect(cardEl).left)
+    const srcOff = Math.round(rect(srcTitle).left - rect(rs[0]).left)
+    ok(Math.abs(cardOff - srcOff) <= 2, '浮卡内文字缩进与原行一致', 'card=' + cardOff + ' row=' + srcOff)
+  } else {
+    ok(false, '浮卡内文字缩进与原行一致', 'missing title')
+  }
 
   fire('dragover', rs[2], rect(rs[2]).top + 10)
   const ph1 = phY()
