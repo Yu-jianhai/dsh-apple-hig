@@ -101,7 +101,11 @@ eq(CORE.clampSlot(5, gB, rows.length), 5, '组内原样通过')
 
 console.log('\nCORE.slotTopIn')
 eq(CORE.slotTopIn(rows, 4, 36, gB), 310, '组二第一格取该行顶部（不是上一组末尾）')
-eq(CORE.slotTopIn(rows, 7, 36, gB), 418, '组末之后 = 末行底 + 间距补白')
+eq(
+  CORE.slotTopIn(rows, 7, 36, gB),
+  382,
+  '组末之后 = 末行原格（让位后空出来的那一格，不是末行底）',
+)
 eq(CORE.slotTopIn(rows, 0, 36, gB), 310, '小于组首 → 贴组首')
 
 console.log('\nCORE.phRect')

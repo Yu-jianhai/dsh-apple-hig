@@ -94,10 +94,12 @@ dragend     ──► end(commit=false)（已 drop 过则空转）
 
 ## 5. 不变量（改代码时别破坏）
 
-1. **源行不移动**：`shiftOf(source, …) === 0`。
+1. **源行不移动**：`shiftOf(source, …) === 0`；它只在「落点仍是原位」时显示 35% 淡影，
+   一旦让位发生（`<html data-ahig-gap="1">`）必须真正隐藏，否则让位的行会压到它身上叠字。
 2. **灰块与浮卡同一坐标系**（viewport），否则吸附落点必然错。
 3. **提交前清位移、取消时滑回**：顺序不能反，否则同一行两套动画。
-4. **落点只能落在本组**：`first ≤ slot ≤ last+1`。
+4. **落点只能落在本组**：`first ≤ slot ≤ last+1`；其中 `last+1` 表示「组末那一格」= **最后一行原来的格**，
+   不是「末行底下」——按末行底算会落到组末的「展开其余 N 个会话」那一行上，把它的字盖住。
 5. **克隆必须摘 `data-row-key`**：`dsh-session-progress` 靠它画进度带，否则灰块里会多一条。
 6. **克隆必须抄继承样式**：`--dsh-workspace-indent`、padding、字体、颜色。
 7. **不 `preventDefault` 原生事件**：宿主还要接这次拖拽。
@@ -108,7 +110,7 @@ dragend     ──► end(commit=false)（已 drop 过则空转）
 | 文件 | 层次 | 断言数 | 跑法 |
 | --- | --- | --- | --- |
 | `test/unit-drag-core.mjs` | 纯核心（数组进、数字出） | 32 | `npm run test:unit` |
-| `test/run-drag-fixture.mjs` | 集成（无头 Edge + 真 `DragEvent` + 真 bundle） | 10 | `npm run test:drag` |
+| `test/run-drag-fixture.mjs` | 集成（无头 Edge + 真 `DragEvent` + 真 bundle） | 17 | `npm run test:drag` |
 | `test/boot-smoke.mjs` | 插件生命周期（bundle/apply/卸载） | 全部 | `npm run test:boot` |
 
 新增断言必须做**反向验证**：复制一份去掉补丁的副本跑出 FAIL，再删掉副本。

@@ -71,6 +71,7 @@
     if (g.overflow) {
       const ov = document.createElement('div')
       ov.className = 'overflow'
+      ov.dataset.rowKey = 'overflow:' + g.name   // 宿主：data-row-key="overflow:<组 key>"
       ov.textContent = '展开其余 3 个会话'
       gd.appendChild(ov)
     }
@@ -151,6 +152,35 @@
   const dy1 = rs[1].style.transform
   ok(/translateY\(-3\d/.test(dy1), '第 2 行让位（上移一格）', 'style="' + dy1 + '"')
 
+  // 让位一旦发生，源行必须真正隐藏（35% 淡影会和让位行的字叠在一起）
+  ok(
+    getComputedStyle(rs[0]).visibility === 'hidden',
+    '让位后源行隐藏',
+    'visibility=' + getComputedStyle(rs[0]).visibility,
+  )
+
+  // 组末的「展开其余」是宿主的一行（overflow:），拖到组末时它必须一起下移
+  const ovEl = document.querySelector('[data-row-key^="overflow:"]')
+  const ovTop0 = ovEl ? rect(ovEl).top : -1
+  const stepNow = Math.round(rect(rs[1]).top - rect(rs[0]).top)
+  fire('dragover', rs[3], rect(rs[3]).bottom + 8)
+  // 落点算在最后一行原来的格子里：既不是「末行之下的那一格」，也不压到组末那行「展开其余」
+  ok(
+    Math.abs(phY() - rect(rs[3]).top) < 8,
+    '组末落点停在末行原格',
+    'ph=' + Math.round(phY()) + ' lastTop=' + Math.round(rect(rs[3]).top),
+  )
+  ok(
+    phY() + 34 <= ovTop0 + 1,
+    '灰块不压在「展开其余」上',
+    'phBottom=' + Math.round(phY() + 34) + ' ovTop=' + Math.round(ovTop0),
+  )
+  ok(
+    !(ovEl && ovEl.style.transform),
+    '「展开其余」不被让位推走',
+    'style="' + ((ovEl && ovEl.style.transform) || '') + '"',
+  )
+
   // 跨组：拖到第二组第 1 行，slot 夹在组一末尾，灰块不越界
   fire('dragover', rs[4], rect(rs[4]).top + 4)
   const ph2 = phY()
@@ -180,10 +210,30 @@
   const ph3 = phY()
   ok(Math.abs(ph3 - rect(rs[5]).top) < 8 || ph3 > g1last, '跨组时落点不回卷到组一（仅记录）', 'ph=' + Math.round(ph3))
 
+  // 连续两次拖拽：第二次在第一次的 280ms 清理窗口内开始。
+  // 旧实现里第一次的清理被代次守卫跳过，灰块与行位移会留在页面上（用户录屏里的空框）。
+  fire('dragstart', rs[1], rect(rs[1]).top + 20)
+  fire('dragover', rs[3], rect(rs[3]).top + 10)
+  fire('drop', rs[3], rect(rs[3]).top + 10)
+  fire('dragstart', rs[0], rect(rs[0]).top + 20)
+  fire('dragover', rs[2], rect(rs[2]).top + 10)
+  fire('drop', rs[2], rect(rs[2]).top + 10)
   } catch (e) { results.push('FAIL 抛异常: ' + e.message + ' @' + (e.stack||'').split(String.fromCharCode(10))[1]) }
-  out.textContent = results.join('\n') + '\n\nlog: ' + (log.join(' | ') || '-')
-  document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
-  window.__fixture = { results }
+
+  const finish = () => {
+    try {
+      ok(document.querySelectorAll('.ahig-drag-ph').length === 0, '连续拖拽后灰块已清理', 'left=' + document.querySelectorAll('.ahig-drag-ph').length)
+      const dirty = rows().filter((r) => r.style.transform)
+      ok(dirty.length === 0, '连续拖拽后行位移已清理', 'left=' + dirty.length)
+      const stuck = rows().filter((r) => r.hasAttribute('data-ahig-dragging'))
+      ok(stuck.length === 0, '连续拖拽后行不再标记为被拖起', 'left=' + stuck.length)
+    } catch (e) { results.push('FAIL 清理断言抛异常: ' + e.message) }
+    out.textContent = results.join('\n') + '\n\nlog: ' + (log.join(' | ') || '-')
+    document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
+    window.__fixture = { results }
+  }
+  // 清理定时器是 DRAG_SNAP_MS + 40 = 280ms；夹具里等 500ms 再判。
+  setTimeout(finish, 500)
 </script>
 </body>
 </html>
