@@ -68,14 +68,17 @@ function finish() {
   const count = (t) => texts.filter((x) => x === t).length
   ok(buttons().length === 6, '标签按钮数=6', 'got ' + buttons().length)
   ok(count('对话') === 1 && count('轨迹') === 1, '不重复的标签原样保留', texts.join('/'))
-  ok(count('上下文') === 1, '「上下文」只显示一个（带图标 span 的重复被隐藏）', texts.join('/'))
-  ok(count('编队') === 1, '「编队」只显示一个（纯文字重复被隐藏）', texts.join('/'))
+  // 默认关闭：两个「上下文」分属 dsh-context 与 billion-context，是两个合法视图，
+  // 按文案隐藏会把第二个整个吃掉（v0.8.4 起默认不隐藏）。
+  ok(count('上下文') === 2, '默认两个「上下文」都保留（不同插件）', texts.join('/'))
+  ok(count('编队') === 2, '默认两个「编队」都保留', texts.join('/'))
   ok(
-    typeof window.dshAppleHig?.tabs === 'function' ? window.dshAppleHig.tabs().hidden === 2 : false,
-    '对外暴露的隐藏计数=2',
+    typeof window.dshAppleHig?.tabs === 'function' ? window.dshAppleHig.tabs().hidden === 0 : false,
+    '默认隐藏计数=0',
     typeof window.dshAppleHig?.tabs === 'function' ? JSON.stringify(window.dshAppleHig.tabs()) : 'no api',
   )
-  out.textContent = results.join('\n') + '\n\nlog: ' + (log.join(' | ') || '-')
+
+  out.textContent = results.join(String.fromCharCode(10)) + String.fromCharCode(10) + 'log: ' + (log.join(' | ') || '-')
   document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
 }
 

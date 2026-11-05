@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<!-- 每个 tab 外面包一层 span.hc，复刻宿主/第三方的包装层 -->
+<title>顶栏分段控件 · 夹具</title>
+<!--
+  复刻宿主标题行的真实结构与样式（_recon/ex4/.../dsh-client-ui-conversation/lib/client.js）：
+    <div class="hdr">            header（grid，min-height:76px）
+      <div class="tabs">         .tabs{margin-top:10px;padding-left:8px;display:flex}
+        <div class="viewTabs" role="tablist" data-conversation-tabs>
+          <span class="hc"><button class="tab" role="tab">…</button></span>
+  用窄宽度（360px）跑，专门压出「按钮被 flex 压缩、文字互相压住」的形态。
+-->
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #121212; color: #f9fafb; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+  .frame { width: 360px; border-bottom: .5px solid rgba(255,255,255,.12); }
+  .hdr {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 76px;
+    padding: 10px 28px 0 20px;
+  }
+  .tabs { display: flex; flex-wrap: wrap; grid-column: 1/-1; gap: 16px 20px; margin-top: 10px; padding-left: 8px; }
+  .viewTabs { display: flex; flex-wrap: wrap; gap: 32px; min-height: 25px; }
+  .tab {
+    position: relative;
+    min-height: 25px;
+    padding: 0 0 9px;
+    border: none;
+    background: none;
+    color: #adb2b8;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+    cursor: pointer;
+  }
+  .tab:after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: none;
+  }
+  .tabActive { color: #60a5fa; }
+  .tabActive:after { background: #60a5fa; }
+  #out { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; padding: 8px 12px; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="hdr">
+    <div class="tabs">
+      <div class="viewTabs" role="tablist" data-conversation-tabs>
+        <span class="hc"><button type="button" role="tab" class="tab tabActive" aria-selected="true">对话</button></span>
+        <span class="hc"><button type="button" role="tab" class="tab" aria-selected="false">轨迹</button></span>
+        <span class="hc"><button type="button" role="tab" class="tab" aria-selected="false"><span class="tab-icon"></span><span class="tab-label">上下文</span></button></span>
+        <span class="hc"><button type="button" role="tab" class="tab" aria-selected="false"><span class="tab-label">编队</span></button></span>
+      </div>
+    </div>
+  </div>
+</div>
+<pre id="out">running…</pre>
+
+<script>
+const ReactStub = {
+  createElement: () => null,
+  Component: class { constructor(p) { this.props = p } setState() {} },
+}
+window.__ModuleLoader__ = { load: (def) => { window.__def = def } }
+</script>
+<script src="../lib/client.js"></script>
+<script>
+const req = (id) => (id === 'react' ? ReactStub : ({}))
+const exp = window.__def.factory(req)
+const ctx = {
+  slots: { register: () => () => {}, inject: (name, factory) => { try { for (const _ of factory()) break } catch (e) {} } },
+  theme: {
+    getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
+    overrideTokens: () => () => {},
+  },
+  effect: (fn) => { fn() },
+}
+try { exp.apply(ctx) } catch (e) {}
+
+const results = []
+const ok = (cond, name, extra) => results.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' — ' + extra : ''))
+
+const buttons = () => [...document.querySelectorAll('[data-conversation-tabs] button[role="tab"]')]
+const rect = (el) => el.getBoundingClientRect()
+
+function finish() {
+  const bs = buttons()
+  const rects = bs.map(rect)
+  const track = document.querySelector('[data-conversation-tabs]')
+  const tr = rect(track)
+  ok(bs.length === 4, '标签数=4', String(bs.length))
+  ok(bs.every((b) => Math.round(rect(b).height) === 26), '每个标签 26px 高', rects.map((r) => Math.round(r.height)).join('/'))
+
+  // 关键回归：相邻标签不得互相压住（宿主给了 flex-wrap:wrap + gap:32px，
+  // 但我们把容器改成 inline-flex + nowrap + gap:2px —— 一旦按钮还能被压缩，
+  // 文字就会溢进邻居里，用户看到的就是「完全重叠」）。
+  let worst = 0
+  for (let i = 1; i < rects.length; i += 1) worst = Math.max(worst, rects[i - 1].right - rects[i].left)
+  ok(worst <= 0, '相邻标签不重叠', 'maxOverlap=' + Math.round(worst) + 'px')
+
+  // 每个按钮的宽度必须装得下自己的文字（padding 12×2 + 文字宽）
+  let cramped = 0
+  for (const b of bs) {
+    const span = [...b.querySelectorAll('span')].map((s) => s.getBoundingClientRect().width).reduce((a, c) => a + c, 0)
+    const need = span + 24
+    if (rect(b).width + 1 < need) cramped += 1
+  }
+  ok(cramped === 0, '按钮宽度装得下文字（无压缩）', 'cramped=' + cramped)
+
+  // 关键回归 2：按钮规则必须是「后代选择器」。宿主若在 tablist 与 button 之间夹一层
+  // 包装（HoverCard/提示层都会），用 `>` 会整段失效——轨道生效、按钮没 padding，
+  // 文字零间距挤在一起，正是用户截图里的「完全重叠」。
+  ok(
+    bs.every((b) => getComputedStyle(b).paddingLeft === '12px'),
+    '按钮拿到 12px 内边距（包装层不影响选择器）',
+    bs.map((b) => getComputedStyle(b).paddingLeft).join('/'),
+  )
+
+  ok(tr.width <= 360, '轨道不超出容器', 'track=' + Math.round(tr.width))
+  ok(getComputedStyle(track).display.includes('flex'), '轨道已换成分段控件', getComputedStyle(track).display)
+
+  out.textContent = results.join('\n')
+  document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
+}
+
+const out = document.getElementById('out')
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(finish, 60)))
+</script>
+</body>
+</html>

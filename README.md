@@ -4,9 +4,12 @@
 不改宿主代码、不碰功能布局、每一档都能单独关掉，卸载即完全还原。
 
 - 仓库：<https://github.com/Yu-jianhai/dsh-apple-hig>
-- 版本：0.8.3
+- 版本：0.8.4
 - 作用面：客户端（`module.exports.inject: ['slots','theme']`）；宿主半边是空操作
 - 范围：方案里的 **L0（token）+ L1（排版）+ L2（材质与形状）+ L3（布局）**
+- **v0.8.4 撤回按文案去重 + 修分段控件的重叠**：实测两个「上下文」分别是 `dsh-context` 的 `context`（order 20）与 `billion-context` 的 `bili-context`（order 30）——**两个插件各自合法的视图**，按文案隐藏会把后者整个吃掉，所以 `tabDedupe` 改为**默认关闭**（开关保留，只给「同一插件重复注册」的极端情况）。
+  同时修掉标签条的重叠：按钮规则原用子代选择器 `[data-conversation-tabs] > button[role="tab"]`，一旦 tablist 与按钮之间夹了包装层（提示层/HoverCard 都会），整组按钮规则全部落空——只剩轨道生效、按钮没有内边距，文字零间距挤在一起。改成**后代选择器**，并给按钮 `flex:0 0 auto` + `white-space:nowrap`、轨道 `flex-wrap:wrap`。
+  回归：`test/tab-fixture.html` 改断言「默认两个上下文都保留、hidden=0」，新增 `test/tab-dedupe-fixture.html`（手动打开去重后只剩一个）；`test/chrome-fixture.html` 给每个 tab 套一层 `<span class="hc">` 复刻包装层，断言「按钮拿到 12px 内边距」——把选择器改回 `>` 会跑出 `0px/0px/0px/0px`。
 - **v0.8.3 标签条去重补齐带图标的 label**：v0.8.2 的判重取的是按钮里第一个 `<span>`，而宿主给 view 的 label 可能是 `<span class="icon"/><span>上下文</span>`（图标 span 在前且为空）→ 拿到空串被跳过，两个「上下文」照样并排。改成取「最后一个非空 span」、全空再退回整按钮文本；新增 `test/tab-fixture.html` 覆盖两种 label 形态，去掉修复会跑出两个「上下文」。
 - **v0.8.2 标签条去重**：宿主把同一个 `conversation.view` 注册两次时（标题行会出现两个「上下文」），表现层把后出现的同文案标签隐藏、重复消失后自动还原；不移除节点（React 仍持有 fiber），默认开，可在设置里关。
 - **v0.8.1 修松手后的重影与压行**：源行只在「还占着原位」时显示 35% 淡影，一旦让位发生就真正隐藏（否则让位行会压到它身上叠字）；组末落点改停「末行原格」，不再落到「展开其余 N 个会话」那一行上把字盖住。夹具新增 3 条断言（让位后源行隐藏 / 组末落点停在末行原格 / 灰块不压「展开其余」）。
