@@ -238,15 +238,16 @@ ok(attrs.get('data-ahig-transition') === '1', '切换动画开关默认开（v0.
 // 切换动画的触发器：只挂一个 observer、只盯 data-conversation-session 一个属性
 {
   const live = observers.filter((o) => !o.disconnected)
-  ok(live.length === 1, '装了一个常驻 MutationObserver', String(live.length))
-  const obs = live[0]
-  ok(
-    obs && Array.isArray(obs.options && obs.options.attributeFilter) &&
-      obs.options.attributeFilter.length === 1 &&
-      obs.options.attributeFilter[0] === 'data-conversation-session',
-    '只监听 data-conversation-session（不监听 childList，避免流式输出时的常驻开销）',
+  ok(live.length === 2, '装了两个常驻 MutationObserver（切换动画 + 标签去重）', String(live.length))
+  const obs = live.find(
+    (o) => o.options && Array.isArray(o.options.attributeFilter) &&
+      o.options.attributeFilter.length === 1 &&
+      o.options.attributeFilter[0] === 'data-conversation-session',
   )
+  ok(!!obs, '只监听 data-conversation-session（不监听 childList，避免流式输出时的常驻开销）')
   ok(obs && obs.options && obs.options.subtree === true && obs.options.childList !== true, 'subtree 开、childList 关')
+  const dedupeObs = live.find((o) => o.options && o.options.childList === true)
+  ok(!!dedupeObs, '标签去重 observer 是独立的一份，只盯 childList/subtree')
   // 模拟宿主切换会话：同一个节点只换属性值
   const body = {
     isConnected: true,
@@ -363,9 +364,18 @@ globalThis.window.dshAppleHig.set({ probe: true })
 
 globalThis.window.dshAppleHig.set({ transition: false })
 ok(attrs.get('data-ahig-transition') === '0', '切换动画开关已关')
-ok(observers.every((o) => o.disconnected), '关掉开关后不再留常驻监听')
+ok(
+  observers.filter((o) => !o.disconnected).length === 1 &&
+    observers.filter((o) => !o.disconnected)[0].options.childList === true,
+  '关掉切换动画后只剩标签去重 observer',
+)
 globalThis.window.dshAppleHig.set({ transition: true })
-ok(observers.filter((o) => !o.disconnected).length === 1, '重新打开后又挂上（且只有一份）')
+ok(observers.filter((o) => !o.disconnected).length === 2, '重新打开后又挂上（且只有一份）')
+
+globalThis.window.dshAppleHig.set({ tabDedupe: false })
+ok(observers.filter((o) => !o.disconnected).length === 1, '关掉标签去重后不再留那份 childList observer')
+globalThis.window.dshAppleHig.set({ tabDedupe: true })
+ok(observers.filter((o) => !o.disconnected).length === 2, '重新打开标签去重又挂上（且只有一份）')
 
 console.log('\n偏好落盘')
 const raw = localStorageStub.getItem('dsh-apple-hig:v1')
