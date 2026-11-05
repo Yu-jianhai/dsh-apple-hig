@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>标签条去重 · 夹具</title>
+<style>
+  .strip { display: flex; gap: 8px; padding: 10px; background: #1b1b1c; }
+  .strip button { font: inherit; color: #cfd3d6; background: none; border: 0; padding: 4px 8px; }
+  .strip button[aria-selected="true"] { color: #fff; }
+</style>
+</head>
+<body>
+<!--
+  复刻宿主的标签条结构（`_recon/ex4/.../dsh-client-ui-conversation/lib/client.js` 的 visibleTabs）：
+    <div data-conversation-tabs role="tablist">
+      <button role="tab"><ViewTabLabel/></button> …
+  关键坑：view 的 label 可以是 `<span class="icon"/><span class="label">上下文</span>`
+  —— 图标 span 在前且为空，v0.8.2 的 tabKey 取第一个 span 会拿到空串，去重直接跳过。
+  这里同时放「带图标的重复」与「纯文字的重复」两组，两种形态都要能判出来。
+-->
+<div class="strip" role="tablist" data-conversation-tabs>
+  <button type="button" role="tab" aria-selected="true"><span class="tab-label">对话</span></button>
+  <button type="button" role="tab" aria-selected="false"><span class="tab-label">轨迹</span></button>
+  <button type="button" role="tab" aria-selected="false"><span class="tab-icon"></span><span class="tab-label">上下文</span></button>
+  <button type="button" role="tab" aria-selected="false"><span class="tab-icon"></span><span class="tab-label">上下文</span></button>
+  <button type="button" role="tab" aria-selected="false"><span class="tab-label">编队</span></button>
+  <button type="button" role="tab" aria-selected="false"><span class="tab-label">编队</span></button>
+</div>
+<pre id="out">running…</pre>
+
+<script>
+const ReactStub = {
+  createElement: () => null,
+  Component: class { constructor(p) { this.props = p } setState() {} },
+}
+const log = []
+window.__ModuleLoader__ = { load: (def) => { window.__def = def } }
+</script>
+<script src="../lib/client.js"></script>
+<script>
+const req = (id) => (id === 'react' ? ReactStub : ({}))
+const exp = window.__def.factory(req)
+const ctx = {
+  slots: {
+    register: () => () => {},
+    inject: (name, factory) => { try { for (const _ of factory()) break } catch (e) { log.push('inject throw: ' + e.message) } },
+  },
+  theme: {
+    getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
+    overrideTokens: () => () => {},
+  },
+  effect: (fn) => { fn() },
+}
+try { exp.apply(ctx) } catch (e) { log.push('apply throw: ' + e.message) }
+
+const out = document.getElementById('out')
+const buttons = () => [...document.querySelectorAll('[data-conversation-tabs] > button[role="tab"]')]
+const visibleTexts = () =>
+  buttons()
+    .filter((b) => getComputedStyle(b).display !== 'none')
+    .map((b) => (b.textContent || '').replace(/\s+/g, ''))
+
+const results = []
+const ok = (cond, name, extra) => results.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' — ' + extra : ''))
+
+function finish() {
+  const texts = visibleTexts()
+  const count = (t) => texts.filter((x) => x === t).length
+  ok(buttons().length === 6, '标签按钮数=6', 'got ' + buttons().length)
+  ok(count('对话') === 1 && count('轨迹') === 1, '不重复的标签原样保留', texts.join('/'))
+  ok(count('上下文') === 1, '「上下文」只显示一个（带图标 span 的重复被隐藏）', texts.join('/'))
+  ok(count('编队') === 1, '「编队」只显示一个（纯文字重复被隐藏）', texts.join('/'))
+  ok(
+    typeof window.dshAppleHig?.tabs === 'function' ? window.dshAppleHig.tabs().hidden === 2 : false,
+    '对外暴露的隐藏计数=2',
+    typeof window.dshAppleHig?.tabs === 'function' ? JSON.stringify(window.dshAppleHig.tabs()) : 'no api',
+  )
+  out.textContent = results.join('\n') + '\n\nlog: ' + (log.join(' | ') || '-')
+  document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
+}
+
+// 去重走 rAF，给它两帧
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(finish, 60)))
+</script>
+</body>
+</html>

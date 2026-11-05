@@ -17,7 +17,8 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const fixture = path.join(here, 'drag-fixture.html')
+// 第二个参数可选：跑别的夹具（如 test/tab-fixture.html），输出格式一致
+const fixture = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'drag-fixture.html')
 
 const candidates = [
   process.env.AHIG_BROWSER,
