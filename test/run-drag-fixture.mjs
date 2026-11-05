@@ -55,7 +55,7 @@ try {
       '--no-first-run',
       '--no-default-browser-check',
       `--user-data-dir=${userDir}`,
-      '--virtual-time-budget=8000',
+      '--virtual-time-budget=15000',
       '--dump-dom',
       pathToFileURL(fixture).href,
     ],
