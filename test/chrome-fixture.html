@@ -60,6 +60,7 @@
         <span class="hc"><button type="button" role="tab" class="tab" aria-selected="false"><span class="tab-icon"></span><span class="tab-label">上下文</span></button></span>
         <span class="hc"><button type="button" role="tab" class="tab" aria-selected="false"><span class="tab-label">编队</span></button></span>
       </div>
+      <div class="otherTabs" role="tablist"><div role="tab" class="tab" aria-selected="true">WorkBuddy</div></div>
     </div>
   </div>
 </div>
@@ -127,6 +128,13 @@ function finish() {
 
   ok(tr.width <= 360, '轨道不超出容器', 'track=' + Math.round(tr.width))
   ok(getComputedStyle(track).display.includes('flex'), '轨道已换成分段控件', getComputedStyle(track).display)
+
+  // 页面上可能有第二个 [role="tablist"]（别的面板的标签条）；轨道规则必须只命中带
+  // data-conversation-tabs 的那一个，否则会画出两块灰底叠在一起。
+  const decoy = document.querySelector('.otherTabs')
+  const decoyStyle = getComputedStyle(decoy)
+  ok(decoyStyle.padding === '0px' && (decoyStyle.backgroundColor === 'rgba(0, 0, 0, 0)' || decoyStyle.backgroundColor === 'transparent'),
+    '第二个 tablist 不被画成轨道', decoyStyle.padding + ' / ' + decoyStyle.backgroundColor)
 
   out.textContent = results.join('\n')
   document.title = results.some((r) => r.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS'
