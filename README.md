@@ -7,7 +7,7 @@
 - 版本：0.9.2
 - 作用面：客户端（`module.exports.inject: ['slots','theme']`）；宿主半边是空操作
 - 范围：方案里的 **L0（token）+ L1（排版）+ L2（材质与形状）+ L3（布局）**
-- **v0.9.2 改成 DSH 自己的分段控件规格**（依据仓库 ）：轨道 inset 4px /  / ；标签高 34、、14px·20px；选中块  + 0.5px  + ，用轨道  +  滑动；未选 400 次级色、选中 600 主色；窄容器自动退到 sm 档（inset 2 / 高 30 / 选中 500），再窄就整条退回宿主下划线。同名标签加右上角序号（，tooltip 注明来源插件），不改文案。夹具 22 项（含滑轨索引、同名序号、轨道宽 = 5 段 + 8px）。
+- **v0.9.2 改成 DSH 自己的分段控件规格**（依据仓库 `packages/client/ui-primitives/src/SegmentedTabs.module.css`）：轨道 inset 4px / `radius-lg` / `bg-module-platform`；标签高 34、`padding 0 12`、14px·20px；选中块 `radius-md` + 0.5px `border-l3` + `bg-layer-3`，用轨道 `::before` + `transform 180ms ease` 滑动；未选 400 次级色、选中 600 主色；窄容器自动退到 sm 档（inset 2 / 高 30 / 选中 500），再窄就整条退回宿主下划线。同名标签加右上角序号（`上下文 1 / 2`，tooltip 注明来源插件），不改文案。夹具 22 项（含滑轨索引、同名序号、轨道宽 = 5 段 + 8px）。
 - **v0.9.1 按 HIG 的 Segmented Control 规格校准尺寸**：控件高 **24pt**（原 26）、分段**等宽**（取最宽文本 + 2×10px，且不小于 44px）、段间 **1px**（原 2px）、轨道内边距 **2px**、轨道圆角 **7px**、选中块圆角 **5px**（比轨道小一圈）、标签 13px/Medium；未选中用次级色、选中项**浮起一块底色**（不靠改文字色表达选中）；轨道垂直居中，行内上下留白 6/6 对称。夹具补三条断言：分段等宽、选中段与轨道底色不同、24px 高。
 - **v0.9.0 删掉旧的分段控件实现，按真实结构重写**：前几版一直在猜「哪条规则没命中」——子代/后代、按钮/``[role=tab]``、`width:max-content`、内联样式都试过，实测仍是「轨道被压到 190px、5 个标签要 284px」。按用户要求先**归档再删除**（git tag `archive/tabs-0.8.13` 指向旧实现），然后重新取证：
   ① 宿主源码 `viewTabs()` 直接产出 `div[role=tablist][data-conversation-tabs] > button[role=tab]`，**按钮是 tablist 的直接子节点、没有包装层**（旧夹具里那层 `<span class="hc">` 是我自己臆造的，已删）；
