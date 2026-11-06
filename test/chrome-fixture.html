@@ -136,6 +136,7 @@ function finish() {
     const sum = kids.reduce((n, c) => n + c.getBoundingClientRect().width, 0) + (kids.length - 1) * 2
     const tw = track.getBoundingClientRect().width
     ok(tw >= sum - 2, '轨道装得下内容（未被压窄）', 'track=' + Math.round(tw) + ' need=' + Math.round(sum))
+    ok(track.style.getPropertyValue('width') === 'max-content', '轨道宽度走内联样式（压过宿主 min-width:0）', track.style.getPropertyValue('width'))
   }
 
   // 页面上可能有第二个 [role="tablist"]（别的面板的标签条）；轨道规则必须只命中带
