@@ -31,6 +31,9 @@
     --dsw-alias-bg-base: #151517;
     --dsw-alias-border-l1: #ffffff0f;
     --dsw-alias-border-l2: #ffffff1f;
+    --dsw-alias-border-l3: #ffffff29;
+    --dsw-alias-bg-layer-3: #353638;
+    --dsw-alias-bg-module-platform: #2c2c2e;
     --dsw-alias-interactive-bg-hover: #ffffff14;
     --dsw-radius-sm: 9px;
     --dsw-radius-md: 13px;
@@ -91,6 +94,12 @@
 
 <script>
   const out = document.getElementById('out');
+  // 模拟宿主：点击改变 aria-selected（真实应用里由 React 状态驱动）
+  document.querySelectorAll('#list [role="tab"]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#list [role="tab"]').forEach((x) => x.setAttribute('aria-selected', String(x === b)))
+    })
+  })
   const lines = [];
   let failed = 0;
   function ok(cond, name, detail) {
@@ -133,9 +142,9 @@
   ok(wide.on === true, '宽容器下画成分段控件', String(wide.on))
   ok(list.getAttribute('data-ahig-tabs') === '1', '轨道打上 data-ahig-tabs')
   const heights = btns().map((b) => px(getComputedStyle(b).height))
-  ok(heights.every((h) => h === 24), '每个标签 24px 高（HIG 分段控件常规高）', heights.join('/'))
+  ok(heights.every((h) => h === 34), '每个标签 34px 高（DSH SegmentedTabs md 档）', heights.join('/'))
   const pads = btns().map((b) => px(getComputedStyle(b).paddingLeft))
-  ok(pads.every((p) => p === 10), '按钮拿到 10px 内边距', pads.join('/'))
+  ok(pads.every((p) => p === 12), '按钮拿到 12px 内边距（分段控件）', pads.join('/'))
   const lefts = btns().map((b) => Math.round(b.getBoundingClientRect().left))
   const rights = btns().map((b) => Math.round(b.getBoundingClientRect().right))
   let maxOverlap = 0
@@ -143,10 +152,29 @@
   ok(maxOverlap <= 0, '相邻标签不重叠', 'maxOverlap=' + maxOverlap + 'px')
   const widths = btns().map((b) => Math.round(b.getBoundingClientRect().width))
   ok(widths.every((w) => w === widths[0]), '分段等宽（HIG：segments 默认等宽）', widths.join('/'))
-  const sel = list.querySelector('[role="tab"][aria-selected="true"]')
-  const selBg = getComputedStyle(sel).backgroundColor
+  // 选中态由轨道上的 ::before 指示器表达（滑轨），不是选中按钮自带底色
   const trackBg = getComputedStyle(list).backgroundColor
-  ok(selBg !== trackBg, '选中段有浮起底色（不是只改文字色）', selBg + ' vs ' + trackBg)
+  const ind = getComputedStyle(list, '::before')
+  ok(ind.content !== 'none' && ind.position === 'absolute', '轨道上有滑动指示器（::before）', ind.content)
+  ok(parseFloat(ind.width) > 0, '指示器宽度不为零', ind.width)
+  const listBox = list.getBoundingClientRect()
+  const segW = Math.round(btns()[0].getBoundingClientRect().width)
+  const sumSeg = btns().reduce((n, b) => n + b.getBoundingClientRect().width, 0)
+  ok(Math.abs(listBox.width - (sumSeg + 8)) <= 2, '轨道宽 = 5 段 + 两侧 inset 4px', Math.round(listBox.width) + ' vs ' + Math.round(sumSeg) + '+8')
+  ok(ind.backgroundColor !== trackBg, '指示器底色与轨道不同（选中块浮起）', ind.backgroundColor + ' vs ' + trackBg)
+  ok(ind.transform === 'none' || ind.transform.indexOf('matrix') === 0, '初始指示器在第 1 段（无位移）', ind.transform)
+  btns()[2].click()
+  api.tabs()
+  const idx = getComputedStyle(list).getPropertyValue('--ahig-seg-i').trim()
+  ok(idx === '2', '切换后指示器目标索引 = 2（滑轨跟随，过渡中实测值不变是正常的）', idx)
+  btns()[0].click()
+  api.tabs()
+
+  // 同名标签：两个「上下文」各自带序号（HIG：同级选项要可区分）
+  const ctxs = btns().filter((b) => (b.textContent || '').replace(/\s+/g, '') === '上下文')
+  ok(ctxs.length === 2, '夹具里有两个同名「上下文」', String(ctxs.length))
+  ok(ctxs.every((b, i) => b.getAttribute('data-ahig-dup') === String(i + 1)), '同名标签带序号标记', ctxs.map((b) => b.getAttribute('data-ahig-dup')).join('/'))
+  ok(ctxs[1].getAttribute('title') && ctxs[1].getAttribute('title').indexOf('billion-context') > 0, '第二个上下文注明来源', ctxs[1].getAttribute('title'))
   const trackBox = list.getBoundingClientRect()
   const lastRight = rights[rights.length - 1]
   ok(trackBox.right >= lastRight - 1, '轨道包住最后一个标签', Math.round(trackBox.right) + ' vs ' + lastRight)
