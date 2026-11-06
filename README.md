@@ -4,9 +4,14 @@
 不改宿主代码、不碰功能布局、每一档都能单独关掉，卸载即完全还原。
 
 - 仓库：<https://github.com/Yu-jianhai/dsh-apple-hig>
-- 版本：0.8.4
+- 版本：0.9.0
 - 作用面：客户端（`module.exports.inject: ['slots','theme']`）；宿主半边是空操作
 - 范围：方案里的 **L0（token）+ L1（排版）+ L2（材质与形状）+ L3（布局）**
+- **v0.9.0 删掉旧的分段控件实现，按真实结构重写**：前几版一直在猜「哪条规则没命中」——子代/后代、按钮/``[role=tab]``、`width:max-content`、内联样式都试过，实测仍是「轨道被压到 190px、5 个标签要 284px」。按用户要求先**归档再删除**（git tag `archive/tabs-0.8.13` 指向旧实现），然后重新取证：
+  ① 宿主源码 `viewTabs()` 直接产出 `div[role=tablist][data-conversation-tabs] > button[role=tab]`，**按钮是 tablist 的直接子节点、没有包装层**（旧夹具里那层 `<span class="hc">` 是我自己臆造的，已删）；
+  ② 现场 diag 里 `tl=2`：页面上还有一个来自右栏面板的 `role=tablist`，旧的「后代匹配」会把它也画成轨道；
+  ③ 根因是**装不下**：`.tabs` 是 flex 行、`.viewTabs` 自带 `min-width:0`，一旦可用宽度不足，整条轨道会被压到比内容窄，按钮又不肯缩 → 溢出、文字互压。
+  新实现改成**先量后画**：算出「标签自然宽度 + 内边距 + 间隙」，与「这一行扣掉兄弟元素后的可用宽度」比较；装得下才把几何写成元素的内联样式（压过任何非 `!important` 规则），装不下就整条退回宿主原样、一个内联属性都不留。伪元素下划线与选中态这类 CSS 独有的部分挂在 `[data-ahig-tabs="1"]` 上，只在真正画上时才生效。`test/chrome-fixture.html` 重写为真实结构（按钮直接是 tablist 子节点）+ 12 项断言：宽容器画上、压到 200px 自动退回且无残留、恢复宽度再画上。
 - **v0.8.4 撤回按文案去重 + 修分段控件的重叠**：实测两个「上下文」分别是 `dsh-context` 的 `context`（order 20）与 `billion-context` 的 `bili-context`（order 30）——**两个插件各自合法的视图**，按文案隐藏会把后者整个吃掉，所以 `tabDedupe` 改为**默认关闭**（开关保留，只给「同一插件重复注册」的极端情况）。
   同时修掉标签条的重叠：按钮规则原用子代选择器 `[data-conversation-tabs] > button[role="tab"]`，一旦 tablist 与按钮之间夹了包装层（提示层/HoverCard 都会），整组按钮规则全部落空——只剩轨道生效、按钮没有内边距，文字零间距挤在一起。改成**后代选择器**，并给按钮 `flex:0 0 auto` + `white-space:nowrap`、轨道 `flex-wrap:wrap`。
   回归：`test/tab-fixture.html` 改断言「默认两个上下文都保留、hidden=0」，新增 `test/tab-dedupe-fixture.html`（手动打开去重后只剩一个）；`test/chrome-fixture.html` 给每个 tab 套一层 `<span class="hc">` 复刻包装层，断言「按钮拿到 12px 内边距」——把选择器改回 `>` 会跑出 `0px/0px/0px/0px`。
@@ -36,7 +41,7 @@
 | 13 | 内容宽度留白 | `--dsh-chat-content-width: min(calc(100% - 32px), 920px)` | `min(calc(100% - 40px), 920px)` | 配套第 12 项：最窄时也留 40px，不让正文贴边 |
 | 14 | 焦点环加宽 | `--dsw-focus-ring-width: 2px` | 3px | 与第 1 项配套：颜色有了，宽度再给一档才「看得见但不刺眼」 |
 | 15 | **顶栏紧凑（看得见）** | `.an3WzG_header{min-height:76px;padding:10px 28px 0 20px}` + 标签行 ≈ 92px 总高 | `min-height:62px; padding-top:8px`，标签行 `margin-top:6px` | HIG：macOS toolbar 约 52pt，标题与视图切换不该占掉窗口 11% 的高度 |
-| 16 | **视图标签 → 分段控件（看得见）** | 下划线式：5 个文字标签、`gap:32px`、选中项靠 `:after` 2px 主色条 | `role=tablist` 容器做成浅色轨道（`radius-md` + 3px 内边距 + `.5px` 内描边），选中项浮起（`radius-sm` + `bg-base` + 1px 投影），去掉下划线 | HIG：macOS 里同级视图切换用 **segmented control**；只动样式，`role`/`aria-selected`/键盘导航全部保留 |
+| 16 | **视图标签 → 分段控件（看得见）** | 下划线式：5 个文字标签、`gap:32px`、选中项靠 `:after` 2px 主色条 | **先量后画**：装得下才改成分段控件（`inline-flex` 轨道 + 26px 高的按钮 + `gap:2px` + `radius-md/sm` + `.5px` 内描边），装不下就整条退回原样（v0.9.0 重写） | HIG：macOS 里同级视图切换用 **segmented control**；只动样式，`role`/`aria-selected`/键盘导航全部保留 |
 | 17 | **阅读宽度对齐（看得见）** | 正文 `min(calc(100% - 32px), 920px)`、输入卡 `min(calc(100% - 16px), 952px)` —— 两个宽度不同，边缘对不齐 | 两者统一 `min(calc(100% - 40px), 780px)` + 卡片 `margin-inline:auto` | HIG Layout：内容与控件对齐；单栏阅读宽度收在舒适范围 |
 | 18 | **底部读数行统一（看得见）** | 输入卡下方那条（`3 轮 305 步 · 195 tok/s ｜费用明细｜41M tok · 缓存命中 99%｜本会话 ¥…·命中…·输入…·缓存…·输出… ｜◔17%`）其实在 `[data-composer-dock]` 里，来自三个来源、各写一套：宿主统计药丸 `font-size:calc(13px - 1px)`·`label-tertiary`·`padding:1px 8px`；cost meter 的「费用明细」是实底灰药丸、`.cm-session-cost` 11px 挤成一行；上下文环无字 | 容器 `gap:10px`·`padding:6px 2px 0`·12px·20px 行高·`label-secondary`·`tabular-nums`；统计药丸与「费用明细」同为 12px 幽灵按钮（20px 高、`radius-sm`、hover 才出淡底）；会话费用 12px，金额次级色、明细三级色 | HIG Typography：同一处读数用同一套字号字重；HIG Layout：靠对齐与留白分组。**顺带纠正一个事实**：`[data-shell-bottom]` 只渲染 `shell.bottom` 槽，desktop profile 无人注册 → 是空行，原第 6 项的「状态栏降存在感」一直打在空盒子上 |
 | 19 | **控件行统一（看得见）** | 输入卡下面那排芯片四个来源四种盒型：「古籍」28px 高·1px 实线·`radius 8`·`opacity .72`；「记忆·智能」视觉 24px·无底无边·开启走 `border-image` 流光；「专家」纯文字 13px 无描边；「完全权限」「模型」宿主自己的槽 | 统一 26px 高·`padding 0 9px`·`radius-sm`·12px/500·**行高 18px**·`gap 5px`·`inline-flex` 居中；「古籍」描边 1px→0.5px 且 `opacity` 归 1；「专家」补 0.5px 淡描边；「+」固定 26×26 | HIG：同类职责的控件共用几何与字重，差别只体现在状态色。**只统一盒子与字体，不碰各插件强调色** —— 强调色表达状态（古籍开启、记忆流光、权限等级），统一掉反而丢信息 |

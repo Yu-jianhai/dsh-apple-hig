@@ -1,6 +1,6 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.8.13",
+  "version": "0.9.0",
   "type": "module",
   "description": "L0–L3 + 会话区拖拽重排（表现层，纯核心可单测）的 Apple HIG 校正层",
   "keywords": [
@@ -55,8 +55,8 @@
     "test:drag": "node test/run-drag-fixture.mjs",
     "test:unit": "node test/unit-drag-core.mjs",
     "test:boot": "node test/boot-smoke.mjs",
-    "test": "node test/unit-drag-core.mjs && node test/boot-smoke.mjs && node test/run-drag-fixture.mjs && node test/run-drag-fixture.mjs test/chrome-fixture.html && node test/run-drag-fixture.mjs test/tab-fixture.html && node test/run-drag-fixture.mjs test/tab-dedupe-fixture.html",
-    "test:tabs": "node test/run-drag-fixture.mjs test/tab-fixture.html && node test/run-drag-fixture.mjs test/tab-dedupe-fixture.html"
+    "test": "node test/unit-drag-core.mjs && node test/boot-smoke.mjs && node test/run-drag-fixture.mjs && node test/run-drag-fixture.mjs test/chrome-fixture.html",
+    "test:tabs": "node test/run-drag-fixture.mjs test/chrome-fixture.html"
   },
   "author": "Ne_Rn",
   "repository": {

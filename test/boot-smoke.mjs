@@ -368,10 +368,12 @@ ok(observers.filter((o) => !o.disconnected).length === 0, '关掉切换动画后
 globalThis.window.dshAppleHig.set({ transition: true })
 ok(observers.filter((o) => !o.disconnected).length === 1, '重新打开后又挂上（且只有一份）')
 
-globalThis.window.dshAppleHig.set({ tabDedupe: false })
-ok(observers.filter((o) => !o.disconnected).length === 1, '关掉标签去重后那份 observer 撤掉')
-globalThis.window.dshAppleHig.set({ tabDedupe: true })
-ok(observers.filter((o) => !o.disconnected).length === 2, '重新打开标签去重又挂上（且只有一份）')
+const TAB_TYPES = ['click', 'resize']
+ok(docListeners.filter((x) => TAB_TYPES.includes(x.type)).length === 2, '标签条挂了 click/resize 两个监听')
+globalThis.window.dshAppleHig.set({ chrome: false })
+ok(docListeners.filter((x) => TAB_TYPES.includes(x.type)).length === 0, '关掉顶栏档后标签条监听撤掉')
+globalThis.window.dshAppleHig.set({ chrome: true })
+ok(docListeners.filter((x) => TAB_TYPES.includes(x.type)).length === 2, '重新打开顶栏档又挂上（各一份）')
 
 console.log('\n偏好落盘')
 const raw = localStorageStub.getItem('dsh-apple-hig:v1')

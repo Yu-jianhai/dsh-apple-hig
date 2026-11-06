@@ -82,7 +82,10 @@ const text = m[1]
   .replace(/&gt;/g, '>')
   .replace(/&amp;/g, '&')
   .trim()
-const lines = text.split('\n').filter((l) => /^(PASS|FAIL)/.test(l))
+const lines = text
+  .split('\n')
+  .map((l) => l.trim())
+  .filter((l) => /^(PASS|FAIL)/.test(l))
 if (!lines.length) {
   console.log('夹具没有任何断言：\n' + text)
   process.exit(1)
