@@ -4,7 +4,7 @@
 不改宿主代码、不碰功能布局、每一档都能单独关掉，卸载即完全还原。
 
 - 仓库：<https://github.com/Yu-jianhai/dsh-apple-hig>
-- 版本：0.9.3
+- 版本：0.9.4
 - 作用面：客户端（`module.exports.inject: ['slots','theme']`）；宿主半边是空操作
 - 范围：方案里的 **L0（token）+ L1（排版）+ L2（材质与形状）+ L3（布局）**
 - **v0.9.2 改成 DSH 自己的分段控件规格**（依据仓库 `packages/client/ui-primitives/src/SegmentedTabs.module.css`）：轨道 inset 4px / `radius-lg` / `bg-module-platform`；标签高 34、`padding 0 12`、14px·20px；选中块 `radius-md` + 0.5px `border-l3` + `bg-layer-3`，用轨道 `::before` + `transform 180ms ease` 滑动；未选 400 次级色、选中 600 主色；窄容器自动退到 sm 档（inset 2 / 高 30 / 选中 500），再窄就整条退回宿主下划线。同名标签加右上角序号（`上下文 1 / 2`，tooltip 注明来源插件），不改文案。夹具 22 项（含滑轨索引、同名序号、轨道宽 = 5 段 + 8px）。
@@ -25,6 +25,7 @@
 ---
 
 - **v0.9.3 修「轨道右侧多出一截空白」**：宿主把标签包在 `.tabLabel{display:block;max-width:88px}` 里，块级 + 上限让 `Range` 量宽恒等于 88px，分段被撑到 88+24=112px。改成 `display:inline-block;max-width:none;overflow:visible` 后按真实文字量宽（63px），轨道宽 5×63+8=323。夹具复刻该包装层并新增断言（23 项）。
+- **v0.9.4 让控件与文字绑定（滑轨不再按 n 等分）**：滑轨的位置与宽度改成取「选中按钮的实测矩形」，轨道宽度也改成「各按钮实测宽之和 + 2×inset」。之前滑轨按 `(100% - 2*inset)/n` 等分，一旦宿主在下一帧替换按钮节点（我们写的内联宽度被清掉）或文字宽与等分值不等，滑轨就会与文字错位。夹具加三条断言（滑轨左缘贴住选中按钮、宽度等于按钮宽、点第 3 个后跟过去），26 项全过。
 ## 1. 它改了什么（以及每条的依据）
 
 | # | 改动 | 改前 | 改后 | 依据 |

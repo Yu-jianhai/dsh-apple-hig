@@ -159,6 +159,13 @@
   const ind = getComputedStyle(list, '::before')
   ok(ind.content !== 'none' && ind.position === 'absolute', '轨道上有滑动指示器（::before）', ind.content)
   ok(parseFloat(ind.width) > 0, '指示器宽度不为零', ind.width)
+  // 控件与文字绑定：滑轨的目标位置/宽度必须来自选中按钮的实测矩形（不是按 n 等分的算术值）
+  const railX = () => parseFloat(getComputedStyle(list).getPropertyValue('--ahig-seg-x')) || 0
+  const railW = () => parseFloat(getComputedStyle(list).getPropertyValue('--ahig-seg-w')) || 0
+  const inset0 = parseFloat(getComputedStyle(list).getPropertyValue('--ahig-seg-inset')) || 4
+  ok(Math.abs(railX() - (btns()[0].getBoundingClientRect().left - list.getBoundingClientRect().left - inset0)) <= 1, '滑轨左缘贴住选中按钮', railX() + ' vs ' + (btns()[0].getBoundingClientRect().left - list.getBoundingClientRect().left - inset0))
+  ok(Math.abs(railW() - btns()[0].getBoundingClientRect().width) <= 1, '滑轨宽度等于按钮宽度', railW() + ' vs ' + btns()[0].getBoundingClientRect().width)
+
   const listBox = list.getBoundingClientRect()
   const segW = Math.round(btns()[0].getBoundingClientRect().width)
   const sumSeg = btns().reduce((n, b) => n + b.getBoundingClientRect().width, 0)
@@ -169,6 +176,11 @@
   api.tabs()
   const idx = getComputedStyle(list).getPropertyValue('--ahig-seg-i').trim()
   ok(idx === '2', '切换后指示器目标索引 = 2（滑轨跟随，过渡中实测值不变是正常的）', idx)
+  {
+    const want = btns()[2].getBoundingClientRect().left - list.getBoundingClientRect().left - inset0
+    ok(Math.abs(railX() - want) <= 1, '滑轨跟到第 3 个按钮', railX() + ' vs ' + want)
+  }
+
   btns()[0].click()
   api.tabs()
 
