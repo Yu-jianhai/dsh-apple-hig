@@ -19,7 +19,7 @@
   旧夹具多套了一层 <span class="hc">，那是把问题归因错了地方，已删除。
 
   两条断言路径：
-    1) 宽 520px：装得下 → 应当画成分段控件（按钮 26px 高、12px 内边距、轨道带底色）
+    1) 宽 520px：装得下 → 应当画成分段控件（按钮 34px 高、12px 内边距、轨道带底色）
     2) 压到 200px：装不下 → 应当整条退回宿主原样（不留内联样式、不加 data-ahig-tabs）
 -->
 <style>
@@ -32,27 +32,41 @@
     --dsw-alias-border-l1: #ffffff0f;
     --dsw-alias-border-l2: #ffffff1f;
     --dsw-alias-border-l3: #ffffff29;
+    /* 宿主深色主题的真实取值：layer-3 与 module-platform 同为 bluish-800 #353638。
+       旧夹具把它们写成 #353638 / #2c2c2e，凭空造出了对比，于是"选中块浮起"这条
+       断言在夹具里恒过、在真机上恒错。 */
     --dsw-alias-bg-layer-3: #353638;
-    --dsw-alias-bg-module-platform: #2c2c2e;
+    --dsw-alias-bg-module-platform: #353638;
     --dsw-alias-interactive-bg-hover: #ffffff14;
     --dsw-radius-sm: 9px;
     --dsw-radius-md: 13px;
   }
   body { margin: 0; background: #121212; color: #f9fafb; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
-  .frame { width: 520px; border-bottom: .5px solid rgba(255,255,255,.12); }
+  .frame { width: 520px; }
+  /* 分隔线在 header 自己身上（宿主 .an3WzG_header{border-bottom:.5px solid --dsw-alias-border-l3}）。
+     旧夹具把它挂在 .frame 上，于是「轨道下沿离分隔线多远」根本没人管——
+     真机上轨道紧贴分隔线（间隙 0）就是这么漏掉的。 */
   .hdr {
     box-sizing: border-box;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     min-height: 76px;
     padding: 10px 28px 0 20px;
+    border-bottom: .5px solid var(--dsw-alias-border-l3);
   }
   .tabs { display: flex; flex-wrap: wrap; grid-column: 1/-1; gap: 16px 20px; margin-top: 10px; padding-left: 8px; width: 100%; }
   .viewTabs { display: flex; flex-wrap: wrap; gap: 32px; min-width: 0; min-height: 25px; }
+  /* 逐字抄自宿主 dsh-client-ui-conversation 的 CSS module（.an3WzG_tab）：
+     min-height:35px、margin:-10px -10px 0（左右各外扩 10px 的命中区）、padding:10px 10px 9px。
+     这组负边距是真机上「轨道 188 宽、32 高、标签挤在一起」的唯一来源——
+     旧夹具把它简化成 min-height:25px / padding:0 0 9px，于是夹具全过而真机照坏。 */
   .tab {
+    --dsh-tab-hit-inline: 10px;
     position: relative;
-    min-height: 25px;
-    padding: 0 0 9px;
+    box-sizing: border-box;
+    min-height: 35px;
+    margin: -10px calc(-1 * var(--dsh-tab-hit-inline)) 0;
+    padding: 10px var(--dsh-tab-hit-inline) 9px;
     border: none;
     background: none;
     color: #adb2b8;
@@ -64,7 +78,7 @@
   .tab:after {
     content: "";
     position: absolute;
-    left: 0; right: 0; bottom: -1px;
+    left: var(--dsh-tab-hit-inline); right: var(--dsh-tab-hit-inline); bottom: -1px;
     height: 2px;
     border-radius: 2px;
     background: none;
@@ -122,12 +136,33 @@
     register: () => () => {},
     inject: (_name, factory) => { for (const _ of factory()) {} },
   }
+  // theme 桩：overrideTokens 真的把 token 落到 :root，这样夹具覆盖到「token 层 → CSS 变量」
+  // 这段真实链路；否则插件声明的 --dsw-ahig-seg-pill 在夹具里永远拿不到，断言等于没测。
+  const appliedTokens = {}
   const theme = {
     getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
     setTheme: () => {},
     setFontSize: () => {},
     register: () => () => {},
-    overrideTokens: () => () => {},
+    overrideTokens: (source, tokens) => {
+      const prev = appliedTokens[source]
+      appliedTokens[source] = tokens
+      const paint = () => {
+        for (const [name, pair] of Object.entries(tokens)) {
+          document.documentElement.style.setProperty(name, pair.dark)
+        }
+      }
+      paint()
+      return () => {
+        if (appliedTokens[source] !== tokens) return
+        delete appliedTokens[source]
+        const keep = new Set(Object.values(appliedTokens).flatMap((t) => Object.keys(t)))
+        for (const name of Object.keys(tokens)) {
+          if (!keep.has(name)) document.documentElement.style.removeProperty(name)
+        }
+        if (prev) for (const [name, pair] of Object.entries(prev)) document.documentElement.style.setProperty(name, pair.dark)
+      }
+    },
   }
   const mod = window.__def.factory((id) => (id === 'react' ? ReactStub : {}))
   mod.apply({ slots, theme, effect: (fn) => fn() })
@@ -138,6 +173,9 @@
   const api = window.dshAppleHig
 
   // ---- 1) 宽容器：应当画成分段控件 ----
+  // 先在「没人调用测试钩子」的状态下看：apply 里就该起好 pipeline 并画完。
+  // 以前断言第一行自己调 api.tabs()（内部会 syncTabs），等于自证，真机没画也测不出来。
+  ok(list.getAttribute('data-ahig-tabs') === '1', '启动期即已上色（不靠测试钩子触发）', String(list.getAttribute('data-ahig-tabs')))
   const wide = api.tabs()
   ok(wide.buttons === 5, '五个标签都被识别（直接子节点）', String(wide.buttons))
   ok(wide.on === true, '宽容器下画成分段控件', String(wide.on))
@@ -151,6 +189,16 @@
   let maxOverlap = 0
   for (let i = 1; i < lefts.length; i += 1) maxOverlap = Math.max(maxOverlap, rights[i - 1] - lefts[i])
   ok(maxOverlap <= 0, '相邻标签不重叠', 'maxOverlap=' + maxOverlap + 'px')
+  // 未选中 400 / 选中 600：分段控件的「选中」靠字重差表达，两边都粗会整体偏重
+  const weights = btns().map((b) => Number(getComputedStyle(b).fontWeight))
+  ok(weights[0] === 600 && weights.slice(1).every((w) => w === 400), '字重：选中 600、未选 400', weights.join('/'))
+  // 同名标签只在 title 里说明来源，不画角标数字（角标会顶到轨道上沿，与 mock 不符）
+  const badge = getComputedStyle(btns()[2], '::after')
+  ok(badge.display === 'none' || badge.content === 'none' || badge.content === '""', '同名标签不画角标数字', badge.display + ' ' + badge.content)
+  // 轨道高 = 标签高 + 两侧 inset（mock 实测 42 = 34 + 4×2）
+  ok(px(getComputedStyle(list).height) === 42, '轨道高 42px（34 + inset 4×2）', getComputedStyle(list).height)
+  const segW0 = Math.round(btns()[0].getBoundingClientRect().width * 10) / 10
+  ok(segW0 > 56 && segW0 < 59, '段宽＝自然宽等分（mock 实测 57.6，而非“最宽文字+24”的 66）', String(segW0))
   const widths = btns().map((b) => Math.round(b.getBoundingClientRect().width))
   ok(widths.every((w) => w === widths[0]), '分段等宽（HIG：segments 默认等宽）', widths.join('/'))
   ok(widths[0] <= 70, '分段宽度按真实文字量（不被 .tabLabel 的 max-width 撑到 88+24）', widths[0] + 'px')
@@ -189,6 +237,14 @@
   ok(ctxs.length === 2, '夹具里有两个同名「上下文」', String(ctxs.length))
   ok(ctxs.every((b, i) => b.getAttribute('data-ahig-dup') === String(i + 1)), '同名标签带序号标记', ctxs.map((b) => b.getAttribute('data-ahig-dup')).join('/'))
   ok(ctxs[1].getAttribute('title') && ctxs[1].getAttribute('title').indexOf('billion-context') > 0, '第二个上下文注明来源', ctxs[1].getAttribute('title'))
+  {
+    // 轨道下沿到顶栏分隔线的间隙：真机 bug 是 0（轨道紧贴分隔线）
+    const hdr = document.querySelector('.hdr')
+    const hdrStyle = getComputedStyle(hdr)
+    const borderPx = parseFloat(hdrStyle.borderBottomWidth) || 0
+    const gap = hdr.getBoundingClientRect().bottom - borderPx - list.getBoundingClientRect().bottom
+    ok(gap >= 6, '轨道下沿与顶栏分隔线留出余量（≥6px）', Math.round(gap * 10) / 10 + 'px')
+  }
   const trackBox = list.getBoundingClientRect()
   const lastRight = rights[rights.length - 1]
   ok(trackBox.right >= lastRight - 1, '轨道包住最后一个标签', Math.round(trackBox.right) + ' vs ' + lastRight)
@@ -199,8 +255,9 @@
   document.getElementById('tabsRow').style.width = '200px'
   const narrow = api.tabs()
   ok(narrow.on === false, '装不下时不做改造（退回宿主下划线样式）', String(narrow.on))
-  const narrowPad = px(getComputedStyle(btns()[0]).paddingLeft)
-  ok(narrowPad === 0, '退回后没有残留内联内边距', String(narrowPad))
+  const narrowPad = btns()[0].style.paddingLeft
+  ok(narrowPad === '', '退回后没有残留内联样式（含 margin/padding）',
+    'padding=' + JSON.stringify(narrowPad) + ' margin=' + JSON.stringify(btns()[0].style.margin))
   const trackRight = list.getBoundingClientRect().right
   const rowRight = document.getElementById('tabsRow').getBoundingClientRect().right
   ok(trackRight <= rowRight + 1, '退回后轨道不溢出所在行', Math.round(trackRight) + ' vs ' + Math.round(rowRight))

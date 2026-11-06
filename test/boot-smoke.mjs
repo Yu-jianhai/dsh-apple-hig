@@ -43,13 +43,14 @@ const documentStub = {
   documentElement: html,
   head: { appendChild: (el) => styleEls.push(el) },
   body: { appendChild: (el) => bodyEls.push(el) },
-  /* v0.7.0 的拖拽层：只登记 capture 监听，断言「开开关挂上、关开关摘干净」 */
+  /* v0.10.0 拖拽装饰层：只登记 capture 监听，断言「开开关挂上、关开关摘干净」 */
   addEventListener: (type, fn, capture) => docListeners.push({ type, fn, capture }),
   removeEventListener: (type, fn, capture) => {
     const i = docListeners.findIndex((x) => x.type === type && x.fn === fn && x.capture === capture)
     if (i >= 0) docListeners.splice(i, 1)
   },
   querySelector: () => null,
+  querySelectorAll: () => [],
   createElement: () => {
     const el = {
       isConnected: true,
@@ -200,7 +201,8 @@ ok(sources.some((s) => s === 'apple-hig/font-native' || s === 'apple-hig/font-ap
 ok(sources.includes('apple-hig/radius'), '默认启用了圆角梯度层（v0.2.0 看得见的那档）')
 ok(sources.includes('apple-hig/rhythm'), '默认启用了间距节奏层（v0.2.0 看得见的那档）')
 ok(sources.includes('apple-hig/measure'), '默认启用了阅读宽度层（v0.3.0）')
-ok(sources.length === 7, '默认共 7 层', String(sources.length))
+ok(sources.includes('apple-hig/segmented-pill'), '分段控件选中块底色层已建立（v0.9.8）')
+ok(sources.length === 8, '默认共 8 层', String(sources.length))
 ok(!sources.some((s) => s.includes('squircle')), 'squircle 不产生 token 层（它是纯样式）')
 ok(styleEls.length === 1, '注入了一个样式表', String(styleEls.length))
 {
@@ -292,32 +294,35 @@ ok(
 )
 ok(registered.length === 1 && registered[0].name === 'settings.section', '注册了设置分区')
 
-// v0.7.0 拖拽层：默认开、四个 capture 监听都在
+// v0.10.0 拖拽装饰层：只挂 dragstart / dragend / drop，落点与提交全归宿主
 const dragTypes = docListeners.map((x) => x.type)
-for (const t of ['dragstart', 'dragover', 'drop', 'dragend']) {
+for (const t of ['dragstart', 'dragend', 'drop']) {
   ok(dragTypes.includes(t), '挂了 ' + t + ' 的 capture 监听')
 }
+ok(
+  dragTypes.filter((t) => t === 'dragover').length === 1,
+  'dragover 只挂一条（仅用于让浮卡跟手，不参与落点判定）',
+)
+ok(
+  !docListeners.some((x) => x.type === 'pointerdown'),
+  '没有 pointerdown 探针（v0.7.4 的临时探针已删）',
+)
 ok(attrs.get('data-ahig-drag') === '1', '拖拽开关默认开')
-ok(
-  docListeners.some((x) => x.type === 'pointerdown'),
-  'v0.7.4 探针挂了 pointerdown（用来区分「没按到行」和「按了不起拖拽」）',
-)
-ok(globalThis.window.dshAppleHig.get().probe === true, '诊断浮层默认开')
-ok(
-  bodyEls.some((el) => el.id === 'ahig-probe'),
-  '诊断浮层挂到了 body',
-)
-const probeEl = bodyEls.find((el) => el.id === 'ahig-probe')
-ok(
-  probeEl && String(probeEl.textContent).includes('AHIG 拖拽探针'),
-  '诊断浮层有标题（说明代码真的跑到这里）',
-)
+ok(globalThis.window.dshAppleHig.get().probe === undefined, '诊断浮层开关已移除')
+ok(!bodyEls.some((el) => el.id === 'ahig-probe'), '体里不再有探针浮层')
 const cssText = String(styleEls[0].textContent || '')
-ok(cssText.includes('.ahig-drag-card'), '样式表里有浮卡')
-ok(cssText.includes('.ahig-drag-ph'), '样式表里有灰块')
-ok(cssText.includes('data-ahig-ph="dashed"'), '灰块有三种形态之一（虚线空槽）')
-ok(cssText.includes('data-ahig-dragging'), '被拿起的行会藏起来')
-ok(!/_dropBefore[^;]*opacity:0/.test(cssText), '宿主落点线保留，不再被我们隐藏')
+ok(cssText.includes('[data-ahig-src="1"]'), '源行淡出样式在')
+ok(cssText.includes('_dragPreview'), '给宿主拖影补了圆角与阴影')
+ok(cssText.includes('.ahig-float-card'), '浮卡样式在（v0.10.1）')
+ok(cssText.includes('.ahig-drag-layer') && cssText.includes('.ahig-drop-slot') && cssText.includes('.ahig-drop-line'), '落点提示层样式就位（v0.10.2）')
+ok(cssText.includes('prefers-reduced-motion') && cssText.includes('.ahig-drop-slot,.ahig-drop-line{transition:none}'), '落点提示遵守「减少动态效果」')
+const ds0 = globalThis.window.dshAppleHig.drag()
+ok(typeof ds0.landing === 'string' && typeof ds0.slot === 'string', 'drag() 暴露 landing / slot 读数')
+ok(!cssText.includes('.ahig-drag-card'), '自绘浮卡已删')
+ok(!cssText.includes('.ahig-drag-ph'), '自绘灰块已删')
+ok(!cssText.includes('data-ahig-dragging'), '不再隐藏被拿起的行（会中止原生拖拽）')
+ok(cssText.includes('html[data-ahig-drop="1"] [class*="_dropBefore"]::before'), '宿主落点线只在本插件画上时淡出（门控，不无条件覆盖）')
+ok(typeof globalThis.window.dshAppleHig.drag === 'function', 'drag() 只读快照还在')
 
 // token 形状：必须成对给 light/dark（裸字符串会 throw）
 const focus = overrideCalls.find((c) => c.source === 'apple-hig/focus-ring')
@@ -344,23 +349,26 @@ ok(!afterSources.includes('apple-hig/radius'), '关掉圆角后不再建该层')
 
 console.log('\n关切换动画 → 监听器应随之撤掉')
 
-// 拖拽层：关掉开关要把四个 capture 监听摘干净，且默认值是实块 + 轻回弹
+// 拖拽装饰层：关掉开关要把三个 capture 监听摘干净，形态/回弹偏好已不存在
 console.log('\n关拖拽 → capture 监听应随之撤掉')
 const DRAG_TYPES = ['dragstart', 'dragover', 'drop', 'dragend']
 const beforeDrag = docListeners.filter((x) => DRAG_TYPES.includes(x.type)).length
-ok(beforeDrag === 4, '开着的拖拽层有 4 个 capture 监听')
+ok(beforeDrag === 5, '拖拽层有 5 个监听（4 个 capture + 1 个冒泡）')
+const dragBoundNow = docListeners.filter((x) => DRAG_TYPES.includes(x.type))
+ok(
+  dragBoundNow.some((x) => x.type === 'dragstart' && x.capture === false),
+  '浮卡用的冒泡 dragstart 已挂（必须晚于宿主 setDragImage）',
+)
 globalThis.window.dshAppleHig.set({ drag: false })
 ok(docListeners.filter((x) => DRAG_TYPES.includes(x.type)).length === 0, '关掉拖拽后监听全撤')
 ok(attrs.get('data-ahig-drag') === '0', '关掉后属性为 0')
 const dragPrefs = globalThis.window.dshAppleHig.get()
-ok(dragPrefs.dragStyle === 'solid', '灰块默认实块')
-ok(dragPrefs.dragBounce === true, '吸附默认轻回弹')
+ok(dragPrefs.dragStyle === undefined, '不再有落点形态偏好')
+ok(dragPrefs.dragBounce === undefined, '不再有回弹偏好')
+ok(dragPrefs.dragCard === false, '浮卡默认关（opt-in）')
+const snap = globalThis.window.dshAppleHig.drag()
+ok(snap && snap.active === false && Array.isArray(snap.order), 'drag() 返回宿主落点 + 行序快照')
 globalThis.window.dshAppleHig.set({ drag: true })
-
-// 探针关掉要自己摘掉，不留常驻节点
-globalThis.window.dshAppleHig.set({ probe: false })
-ok(!bodyEls.some((el) => el.id === 'ahig-probe' && el.isConnected), '关掉诊断浮层后节点已移除')
-globalThis.window.dshAppleHig.set({ probe: true })
 
 globalThis.window.dshAppleHig.set({ transition: false })
 ok(attrs.get('data-ahig-transition') === '0', '切换动画开关已关')

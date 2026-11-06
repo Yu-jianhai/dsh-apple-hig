@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * run-drag-fixture.mjs —— 用真实 bundle 跑一遍拖拽几何（无头浏览器）
+ * run-fixture.mjs —— 用真实 bundle 跑一遍夹具断言（无头浏览器）
  *
- * 为什么要有它：拖拽层连着三次「改了跟没改一样」，都是**几何/分组**算错，
- * 而 boot-smoke 是纯替身、量不到矩形。夹具里按宿主真实结构复刻了
- * 「会话行被 HoverCard 的 span 包一层」「renderSlot 产出 display:contents 锚点」
- * 这两个坑，再用真实 DragEvent 驱动，直接断言灰块跳到哪一格、行有没有让位。
+ * 为什么要有它：boot-smoke 是纯替身，量不到矩形与 computed style。夹具按宿主
+ * 真实结构（含 `.an3WzG_tab` 的负边距命中区、`display:contents` 插槽锚点）复刻后，
+ * 用真浏览器量轨道/分段/滑轨的几何，直接断言像素。
  *
- * 用法：node test/run-drag-fixture.mjs
+ * 用法：node test/run-fixture.mjs [夹具路径]
  * 找不到浏览器时退出码 2（不算失败，只是没验）。
  */
 import fs from 'node:fs'
@@ -18,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 // 第二个参数可选：跑别的夹具（如 test/tab-fixture.html），输出格式一致
-const fixture = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'drag-fixture.html')
+const fixture = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'chrome-fixture.html')
 
 const candidates = [
   process.env.AHIG_BROWSER,

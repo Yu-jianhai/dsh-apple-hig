@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>落点提示 · 夹具</title>
+<!--
+  验的是 v0.10.2 的「落点提示」（拖拽时的槽 + 插入线）：
+
+    dragstart   → 源行打 data-ahig-src
+    dragover    → 宿主用 rowHalf(e) 给目标行挂 dropBefore / dropAfter；
+                  插件只读这两个类，画出 .ahig-drag-layer > .ahig-drop-slot / .ahig-drop-line
+    dragend     → 层淡出并摘掉
+
+  关键约束：落点判定**只有宿主一个来源**。插件不自己算「越过了中线没有」，
+  否则会出现「插件画在一格、提交到另一格」。夹具里的假宿主负责挂类，插件负责画。
+-->
+<style>
+  :root { color-scheme: dark; }
+  :root {
+    --dsw-alias-label-primary: #f9fafb;
+    --dsw-alias-label-secondary: #cfd3d6;
+    --dsw-alias-label-tertiary: #9aa1a8;
+    --dsw-alias-bg-layer-2: #232324;
+    --dsw-alias-border-l2: #ffffff1f;
+    --dsw-alias-state-business-primary: #4176e6;
+    --dsw-radius-sm: 9px;
+    --dsw-radius-md: 13px;
+    --dsw-elevation-panel: 0 10px 28px #00000070;
+  }
+  body {
+    margin: 0;
+    background: #121212;
+    color: var(--dsw-alias-label-primary);
+    font: 13px/20px "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  .side { width: 260px; padding: 8px; }
+  .row {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: var(--dsw-radius-sm);
+    color: var(--dsw-alias-label-secondary);
+  }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 宿主自己的落点标记：插件不复制这段样式，只验证「它还在、我们没关掉它」 */
+  .row.wnFoaW_dropBefore, .row.wnFoaW_dropAfter { position: relative; }
+  #out { white-space: pre; padding: 12px; color: #cbd2d9; }
+</style>
+</head>
+<body>
+<div class="side" id="side">
+  <div class="row" data-row-key="session:1"><span class="nm">读仓库找 UI API</span></div>
+  <div class="row" data-row-key="session:2"><span class="nm">修顶栏分段控件</span></div>
+  <div class="row" data-row-key="session:3"><span class="nm">拖拽排序重做</span></div>
+  <div class="row" data-row-key="session:4"><span class="nm">设置页 HIG</span></div>
+</div>
+<pre id="out"></pre>
+
+<script>
+  const out = document.getElementById('out');
+  const lines = [];
+  let failed = 0;
+  function ok(cond, name, detail) {
+    const line = (cond ? 'PASS ' : 'FAIL ') + name + (detail === undefined ? '' : ' — ' + detail);
+    lines.push('  ' + line);
+    if (!cond) failed += 1;
+  }
+  function report() {
+    out.textContent = lines.join('\n') + '\n\n' + (failed ? '有 ' + failed + ' 项失败' : '全部通过');
+    document.title = failed ? 'FAIL' : 'ALL PASS';
+  }
+  window.__ModuleLoader__ = { load: (def) => { window.__def = def } };
+</script>
+<script src="../lib/client.js"></script>
+<script>
+  const dt = { setDragImage() {}, setData() {}, getData: () => '', effectAllowed: 'move', dropEffect: 'move' }
+  const rows = Array.from(document.querySelectorAll('.row'))
+  rows.forEach((r) => r.setAttribute('draggable', 'true'))
+
+  /**
+   * 假宿主：完全照 dsh-client-ui-workspace 的 dragover 逻辑——
+   * 指针在行的上半 ⇒ 给该行挂 dropBefore；下半 ⇒ dropAfter；同时摘掉其它行的标记。
+   * 跨组时宿主什么也不挂（这里用 window.__reject 模拟）。
+   */
+  function hostDragOver(e) {
+    rows.forEach((r) => r.classList.remove('wnFoaW_dropBefore', 'wnFoaW_dropAfter'))
+    if (window.__reject) return
+    const row = e.target.closest ? e.target.closest('.row') : null
+    if (!row) return
+    const box = row.getBoundingClientRect()
+    const after = e.clientY > box.top + box.height / 2
+    row.classList.add(after ? 'wnFoaW_dropAfter' : 'wnFoaW_dropBefore')
+  }
+  // 宿主的监听挂在根容器上、且先于我们的（我们要读它的结果，所以用冒泡 + 让它先跑）
+  document.getElementById('side').addEventListener('dragover', hostDragOver)
+
+  function fire(row, type, init) {
+    const ev = new DragEvent(type, Object.assign({ bubbles: true, cancelable: true, composed: true }, init))
+    Object.defineProperty(ev, 'dataTransfer', { value: dt, configurable: true })
+    row.dispatchEvent(ev)
+    return ev
+  }
+
+  const ReactStub = { createElement: () => null, Component: class { constructor(p) { this.props = p } setState() {} } }
+  const slots = { register: () => () => {}, inject: (_n, factory) => { for (const _ of factory()) {} } }
+  const theme = {
+    getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
+    setTheme: () => {}, setFontSize: () => {}, register: () => () => {},
+    overrideTokens: (source, tokens) => {
+      for (const [name, pair] of Object.entries(tokens)) document.documentElement.style.setProperty(name, pair.dark)
+      return () => { for (const name of Object.keys(tokens)) document.documentElement.style.removeProperty(name) }
+    },
+  }
+  const mod = window.__def.factory((id) => (id === 'react' ? ReactStub : {}))
+  mod.apply({ slots, theme, effect: (fn) => fn() })
+  const api = window.dshAppleHig
+
+  const tick = (ms) => new Promise((r) => setTimeout(r, ms))
+  const waitFor = async (fn, ms = 1500) => {
+    const t0 = Date.now()
+    while (Date.now() - t0 < ms) { if (fn()) return true; await tick(16) }
+    return !!fn()
+  }
+  const layerOf = () => document.querySelector('.ahig-drag-layer')
+  const slotOf = () => document.querySelector('.ahig-drop-slot')
+  const lineOf = () => document.querySelector('.ahig-drop-line')
+  const box = (el) => el.getBoundingClientRect()
+
+  ;(async () => {
+   try {
+    api.set({ drag: true, dragCard: false })
+
+    // ---- 1) 拖起来：源行压暗 ----
+    fire(rows[2], 'dragstart', { clientX: 60, clientY: 120 })
+    await waitFor(() => rows[2].hasAttribute('data-ahig-src'))
+    ok(rows[2].hasAttribute('data-ahig-src'), 'dragstart 后源行打上 data-ahig-src')
+
+    // ---- 2) 悬到第 4 行上半：应落在它前面 ----
+    const r4 = rows[3]
+    const b4 = box(r4)
+    fire(r4, 'dragover', { clientX: 60, clientY: b4.top + 6 })
+    ok(await waitFor(() => slotOf() && slotOf().getAttribute('data-live') === '1'), '落点槽出现并进入 data-live')
+    const slot = slotOf()
+    const line = lineOf()
+    ok(!!layerOf(), '固定层 .ahig-drag-layer 已建立')
+    if (slot && line) {
+      const sb = box(slot)
+      const lb = box(line)
+      const edge = b4.top
+      ok(Math.abs(sb.height - Math.round(b4.height)) <= 1, '槽高 = 行高', Math.round(sb.height) + ' vs ' + Math.round(b4.height))
+      ok(Math.abs(sb.top - (edge - Math.round(b4.height) / 2)) <= 1.5, '槽以插入边界为中心（上半 ⇒ 行上沿）', Math.round(sb.top) + ' vs ' + Math.round(edge - Math.round(b4.height) / 2))
+      ok(Math.abs(lb.top - (edge - 1)) <= 1.5, '插入线压在上沿', Math.round(lb.top) + ' vs ' + Math.round(edge - 1))
+      ok(Math.abs(sb.left - Math.round(b4.left)) <= 1 && Math.abs(sb.width - Math.round(b4.width)) <= 1, '槽与行左右对齐', Math.round(sb.left) + '/' + Math.round(sb.width))
+      ok(getComputedStyle(layerOf()).pointerEvents === 'none', '落点层不吃指针事件（宿主仍能判定 rowHalf）')
+      ok(Number(getComputedStyle(layerOf()).zIndex) === 2147482000, '落点层 z-index 固定在浮卡（2147483000）之下', getComputedStyle(layerOf()).zIndex)
+      ok(!/display:\s*none/.test(getComputedStyle(slot).display), '槽是显示状态')
+      ok(/cubic-bezier\(0\.32,\s*0\.72,\s*0,\s*1\)/.test(getComputedStyle(slot).transition), '槽的位移用减速曲线', getComputedStyle(slot).transition.slice(0, 60))
+    }
+    ok(document.documentElement.getAttribute('data-ahig-drop') === '1', '落点层接管时 html 挂上门控属性')
+    ok(/\[class\*="_dropBefore"\]::before/.test(Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('')), '宿主渐变线在门控下淡出（画不出来时它还在）')
+    ok(api.drag().landing === 'before:session:4', 'drag() 报出落点 before:session:4', String(api.drag().landing))
+
+    // ---- 3) 悬到第 2 行下半：落点翻到它后面，槽应移动 ----
+    const r2 = rows[1]
+    const b2 = box(r2)
+    const topBefore = slotOf().style.top
+    fire(r2, 'dragover', { clientX: 60, clientY: b2.bottom - 6 })
+    ok(await waitFor(() => api.drag().landing === 'after:session:2'), '落点翻到 after:session:2', String(api.drag().landing))
+    ok(slotOf().style.top !== topBefore, '槽跟着新落点移动', topBefore + ' → ' + slotOf().style.top)
+    // 位置先按内联样式断言（确定值），再看动画收敛后的实际矩形（170ms 减速曲线）
+    ok(Math.abs(parseFloat(lineOf().style.top) - (b2.bottom - 1)) <= 1, '插入线内联到新边界', lineOf().style.top + ' vs ' + (b2.bottom - 1))
+    // 过渡在无头窗口里由虚拟时间驱动，收敛时机不可靠；这里只断言「位移曲线已声明 + 内联目标已对」，
+    // 动画本身由 computed transition 那条断言兜底。
+    ok(/top 0\.17s/.test(getComputedStyle(lineOf()).transition), '插入线位移有过渡', getComputedStyle(lineOf()).transition.slice(0, 40))
+
+    // ---- 4) 宿主拒绝（跨组不给标记）：提示必须收掉，不能留个假落点 ----
+    window.__reject = true
+    fire(rows[0], 'dragover', { clientX: 60, clientY: box(rows[0]).top + 6 })
+    await tick(60)
+    ok(!slotOf().getAttribute('data-live'), '宿主不给标记时槽收起（不留假落点）')
+    ok(document.documentElement.getAttribute('data-ahig-drop') === null, '收起时 html 门控属性摘掉')
+    ok(api.drag().landing === '', 'landing 清空', JSON.stringify(api.drag().landing))
+    window.__reject = false
+
+    // ---- 5) 松手：层淡出并摘掉 ----
+    fire(rows[2], 'drop', { clientX: 60, clientY: 200 })
+    fire(rows[2], 'dragend', {})
+    ok(await waitFor(() => !layerOf()), 'dragend 后落点层被摘掉')
+    ok(!rows[2].hasAttribute('data-ahig-src'), 'dragend 后压暗属性清掉')
+    ok(api.drag().landing === '', 'drag() 的 landing 复位')
+
+    // ---- 6) 关掉总开关：dragover 不再画任何东西 ----
+    api.set({ drag: false })
+    fire(rows[2], 'dragstart', { clientX: 60, clientY: 120 })
+    fire(r4, 'dragover', { clientX: 60, clientY: box(r4).top + 6 })
+    await tick(80)
+    ok(!layerOf(), '关掉总开关后不再建落点层')
+    fire(rows[2], 'dragend', {})
+    api.set({ drag: true, dragCard: true })
+   } catch (err) {
+    ok(false, '夹具抛异常', String((err && err.stack) || err).split('\n').slice(0, 3).join(' | '))
+   }
+    report()
+  })()
+</script>
+</body>
+</html>

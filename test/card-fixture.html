@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>浮卡拖影 · 夹具</title>
+<!--
+  验的是 v0.10.1 的「浮卡」路径（默认关，需要显式打开）：
+
+    dragstart（capture）  → 源行打 data-ahig-src、下一帧压暗
+    dragstart（冒泡）     → 先 setDragImage(透明图) 顶掉宿主的位图拖影，再建 .ahig-float-card
+    dragover              → 卡片跟手（translate3d）
+    dragend               → 卡片移除、压暗属性清掉
+
+  关键约束（宿主契约，来自 dsh-client-ui-workspace + dsh-web-frontend 的 useRowDragPreview）：
+    · 宿主的 setDragImage 在它自己的 onDragStart 里同步调用（React 委托在根容器上）
+    · 同一次 dragstart 里后一次 setDragImage 生效 → 我们必须在**冒泡阶段**再调一次
+    · 绝不 preventDefault / 不碰 text/plain，否则宿主的 drop → setSessionOrder 断掉
+  所以下面用一个「假宿主」在行上装 React 风格的 dragstart，记录两次 setDragImage 的先后与内容。
+-->
+<style>
+  :root { color-scheme: dark; }
+  :root {
+    --dsw-alias-label-primary: #f9fafb;
+    --dsw-alias-label-secondary: #cfd3d6;
+    --dsw-alias-label-tertiary: #9aa1a8;
+    --dsw-alias-bg-base: #151517;
+    --dsw-alias-bg-layer-2: #232324;
+    --dsw-alias-border-l2: #ffffff1f;
+    --dsw-radius-sm: 9px;
+    --dsw-radius-md: 13px;
+    --dsw-elevation-panel: 0 10px 28px #00000070;
+  }
+  body {
+    margin: 0;
+    background: #121212;
+    color: var(--dsw-alias-label-primary);
+    font: 13px/20px "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  .side { width: 260px; padding: 8px; }
+  /* 复刻宿主侧栏会话行的关键几何：34px 高、左侧缩进、圆角 */
+  .row {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: var(--dsw-radius-sm);
+    color: var(--dsw-alias-label-secondary);
+    cursor: default;
+  }
+  .row:hover { background: #ffffff14; }
+  .row.sel { background: #ffffff1f; color: var(--dsw-alias-label-primary); }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .btn { margin-left: auto; border: 0; background: none; color: inherit; font: inherit; padding: 2px 4px; }
+  #out { white-space: pre; padding: 12px; color: #cbd2d9; }
+</style>
+</head>
+<body>
+<div class="side" id="side">
+  <div class="row" data-row-key="session:1"><span class="nm">读仓库找 UI API</span><button class="btn" type="button">⋯</button></div>
+  <div class="row sel" data-row-key="session:2"><span class="nm">修顶栏分段控件</span><button class="btn" type="button">⋯</button></div>
+  <div class="row" data-row-key="session:3"><span class="nm">拖拽排序重做</span></div>
+  <div class="row" data-row-key="session:4"><span class="nm">设置页 HIG</span></div>
+  <div class="row" data-row-key="session:5"><span class="nm">beacon 取证</span></div>
+</div>
+<pre id="out"></pre>
+
+<script>
+  const out = document.getElementById('out');
+  const lines = [];
+  let failed = 0;
+  function ok(cond, name, detail) {
+    const line = (cond ? 'PASS ' : 'FAIL ') + name + (detail === undefined ? '' : ' — ' + detail);
+    lines.push('  ' + line);
+    if (!cond) failed += 1;
+  }
+  function report() {
+    out.textContent = lines.join('\n') + '\n\n' + (failed ? '有 ' + failed + ' 项失败' : '全部通过');
+    document.title = failed ? 'FAIL' : 'ALL PASS';
+  }
+  window.__ModuleLoader__ = { load: (def) => { window.__def = def } };
+</script>
+<script src="../lib/client.js"></script>
+<script>
+  // ---- 假宿主：React 风格的行内 dragstart（挂在行元素上，冒泡到 document 之前） ----
+  // 记录每一次 setDragImage，用来断言「透明图是第二次调用、且晚于宿主」
+  const dragCalls = [];
+  const hostPreview = document.createElement('div');
+  hostPreview.className = 'wnFoaW_dragPreview';
+  hostPreview.textContent = 'host';
+  document.body.appendChild(hostPreview)
+
+  const dt = {
+    setDragImage(el, x, y) {
+      dragCalls.push({ who: el === hostPreview ? 'host' : el && el.tagName === 'IMG' ? 'ahig' : 'other', x, y })
+    },
+    setData() {},
+    getData: () => '',
+    effectAllowed: 'move',
+    dropEffect: 'move',
+  }
+  const rows = Array.from(document.querySelectorAll('.row'))
+  rows.forEach((row) => {
+    row.setAttribute('draggable', 'true')
+    row.addEventListener('dragstart', (e) => {
+      // 宿主此刻克隆整行交给 setDragImage —— 我们把它记成第一次调用
+      dt.setDragImage(hostPreview, 10, 10)
+      ;(e).__host = true
+    })
+  })
+
+  function fire(row, type, init) {
+    const ev = new DragEvent(type, Object.assign({ bubbles: true, cancelable: true, composed: true }, init))
+    Object.defineProperty(ev, 'dataTransfer', { value: dt, configurable: true })
+    row.dispatchEvent(ev)
+    return ev
+  }
+
+  const ReactStub = { createElement: () => null, Component: class { constructor(p) { this.props = p } setState() {} } }
+  const slots = { register: () => () => {}, inject: (_n, factory) => { for (const _ of factory()) {} } }
+  const appliedTokens = {}
+  const theme = {
+    getTheme: () => ({ active: 'dark', preference: 'dark', fontSizes: {}, fontFamilies: {}, themes: [], revision: 1 }),
+    setTheme: () => {}, setFontSize: () => {}, register: () => () => {},
+    overrideTokens: (source, tokens) => {
+      appliedTokens[source] = tokens
+      for (const [name, pair] of Object.entries(tokens)) document.documentElement.style.setProperty(name, pair.dark)
+      return () => { for (const name of Object.keys(tokens)) document.documentElement.style.removeProperty(name) }
+    },
+  }
+  const mod = window.__def.factory((id) => (id === 'react' ? ReactStub : {}))
+  mod.apply({ slots, theme, effect: (fn) => fn() })
+  const api = window.dshAppleHig
+
+  // 注：无头模式下 requestAnimationFrame 会被节流（实测 1s 才一两帧），
+  // 所以不「等帧」而「等结果」——压暗是下一帧才落的，轮询它出现即可。
+  const tick = (ms) => new Promise((r) => setTimeout(r, ms))
+  const waitFor = async (fn, ms = 1500) => {
+    const t0 = Date.now()
+    while (Date.now() - t0 < ms) {
+      if (fn()) return true
+      await tick(16)
+    }
+    return !!fn()
+  }
+  const cardOf = () => document.querySelector('.ahig-float-card')
+
+  ;(async () => {
+   try {
+    // ---- 1) 默认关：拖拽只做 V1 装饰，不产生浮卡、不接管 setDragImage ----
+    api.set({ dragCard: false })
+    dragCalls.length = 0
+    fire(rows[1], 'dragstart', { clientX: 40, clientY: 60 })
+    await waitFor(() => rows[1].hasAttribute('data-ahig-src'))
+    ok(dragCalls.length === 1 && dragCalls[0].who === 'host', '默认关：只由宿主调一次 setDragImage', dragCalls.map((c) => c.who).join('/'))
+    ok(!cardOf(), '默认关：不建浮卡')
+    ok(rows[1].hasAttribute('data-ahig-src'), '默认关：源行仍打上压暗属性（V1 装饰保持）')
+    fire(rows[1], 'dragend', {})
+    await waitFor(() => !rows[1].hasAttribute('data-ahig-src'))
+    ok(!rows[1].hasAttribute('data-ahig-src'), 'dragend 后压暗属性清掉')
+
+    // ---- 2) 打开浮卡：冒泡阶段顶掉拖影 + 建卡片跟手 ----
+    api.set({ dragCard: true })
+    dragCalls.length = 0
+    const startEv = fire(rows[1], 'dragstart', { clientX: 40, clientY: 60 })
+    ok(startEv.defaultPrevented === false, '没有 preventDefault（宿主的 drop 依赖它）')
+    ok(dragCalls.length >= 2, 'setDragImage 被调了两次以上', String(dragCalls.length))
+    ok(dragCalls[0].who === 'host', '第一次是宿主（它的 onDragStart 在根容器上先跑）', dragCalls[0].who)
+    ok(dragCalls[dragCalls.length - 1].who === 'ahig', '最后一次是我们（后者生效）', dragCalls.map((c) => c.who).join('/'))
+
+    const card = cardOf()
+    ok(!!card, '浮卡已建立')
+    if (card) {
+      const rowBox = rows[1].getBoundingClientRect()
+      const box = card.getBoundingClientRect()
+      ok(Math.abs(box.width - rowBox.width) <= 1, '卡片宽度等于源行', Math.round(box.width) + ' vs ' + Math.round(rowBox.width))
+      ok(Math.abs(box.height - rowBox.height) <= 1, '卡片高度等于源行', Math.round(box.height) + ' vs ' + Math.round(rowBox.height))
+      ok(getComputedStyle(card).position === 'fixed', '卡片是 fixed 定位')
+      ok(getComputedStyle(card).pointerEvents === 'none', '卡片不吃指针事件（不挡宿主落点判定）')
+      ok(!card.querySelector('[data-row-key]'), '克隆体里没有 data-row-key（不参与宿主行序查询）')
+      const btn = card.querySelector('.btn')
+      ok(btn && btn.getAttribute('tabindex') === '-1', '克隆体里的按钮退出 tab 序')
+      ok(card.hasAttribute('aria-hidden') && card.getAttribute('aria-hidden') === 'true', '卡片对读屏隐藏')
+      // 跟手：起始位置 = 指针 - 抓取偏移
+      const t0 = card.style.transform
+      ok(/translate3d\(/.test(t0), '卡片用 transform 定位', t0)
+      fire(rows[1], 'dragover', { clientX: 140, clientY: 160 })
+      const t1 = card.style.transform
+      ok(t0 !== t1, 'dragover 后卡片跟手移动', t0 + ' → ' + t1)
+      const m = /translate3d\((-?\d+)px,\s*(-?\d+)px/.exec(t1)
+      const expectX = 140 - (40 - rowBox.left)
+      const expectY = 160 - (60 - rowBox.top)
+      ok(m && Math.abs(Number(m[1]) - expectX) <= 1 && Math.abs(Number(m[2]) - expectY) <= 1, '位移 = 指针 − 抓取偏移', (m ? m[1] + ',' + m[2] : '?') + ' vs ' + Math.round(expectX) + ',' + Math.round(expectY))
+    }
+    await waitFor(() => rows[1].hasAttribute('data-ahig-src'))
+    ok(rows[1].hasAttribute('data-ahig-src'), '浮卡态：源行压暗（下一帧落上）')
+
+    fire(rows[1], 'dragend', {})
+    await waitFor(() => !cardOf())
+    ok(!cardOf(), 'dragend 后浮卡移除')
+    ok(!rows[1].hasAttribute('data-ahig-src'), 'dragend 后压暗属性清掉')
+    ok(api.drag().mode === '', 'drag() 的 mode 已复位', String(api.drag().mode))
+
+    // ---- 3) 关掉总开关：dragover 不该再动任何东西 ----
+    api.set({ drag: false })
+    dragCalls.length = 0
+    const before = document.querySelectorAll('.ahig-float-card').length
+    fire(rows[1], 'dragstart', { clientX: 30, clientY: 30 })
+    await tick(60)
+    ok(dragCalls.length === 1, '关掉总开关后只剩宿主的 setDragImage', dragCalls.map((c) => c.who).join('/'))
+    ok(document.querySelectorAll('.ahig-float-card').length === before, '关掉总开关后不再建浮卡')
+    api.set({ drag: true, dragCard: true })
+
+   } catch (err) {
+    ok(false, '夹具抛异常', String((err && err.stack) || err).split('\n').slice(0, 3).join(' | '))
+   }
+    report()
+  })()
+</script>
+</body>
+</html>

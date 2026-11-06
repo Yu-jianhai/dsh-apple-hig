@@ -1,6 +1,6 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.9.6",
+  "version": "0.10.2",
   "type": "module",
   "description": "L0–L3 + 会话区拖拽重排（表现层，纯核心可单测）的 Apple HIG 校正层",
   "keywords": [
@@ -30,10 +30,10 @@
     "install.mjs",
     "test/boot-smoke.mjs",
     "tools/palette.json",
-    "test/run-drag-fixture.mjs",
-    "test/drag-fixture.html",
-    "DRAG-ENGINE.md",
-    "test/unit-drag-core.mjs"
+    "test/run-fixture.mjs",
+    "test/chrome-fixture.html",
+    "test/card-fixture.html",
+    "test/drop-fixture.html"
   ],
   "dsh": {
     "client": {
@@ -52,11 +52,11 @@
   "scripts": {
     "check": "node test/boot-smoke.mjs",
     "check:contrast": "node tools/contrast.mjs",
-    "test:drag": "node test/run-drag-fixture.mjs",
-    "test:unit": "node test/unit-drag-core.mjs",
     "test:boot": "node test/boot-smoke.mjs",
-    "test": "node test/unit-drag-core.mjs && node test/boot-smoke.mjs && node test/run-drag-fixture.mjs && node test/run-drag-fixture.mjs test/chrome-fixture.html",
-    "test:tabs": "node test/run-drag-fixture.mjs test/chrome-fixture.html"
+    "test": "npm run test:boot && npm run test:tabs && npm run test:card && npm run test:drop",
+    "test:tabs": "node test/run-fixture.mjs test/chrome-fixture.html",
+    "test:card": "node test/run-fixture.mjs test/card-fixture.html",
+    "test:drop": "node test/run-fixture.mjs test/drop-fixture.html"
   },
   "author": "Ne_Rn",
   "repository": {
