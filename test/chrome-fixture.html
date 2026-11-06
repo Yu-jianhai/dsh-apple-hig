@@ -24,6 +24,17 @@
 -->
 <style>
   :root { color-scheme: dark; }
+  /* 宿主主题令牌的最小副本：夹具没有 theme 服务，变量缺了 var() 会整条失效 */
+  :root {
+    --dsw-alias-label-primary: #f9fafb;
+    --dsw-alias-label-secondary: #cfd3d6;
+    --dsw-alias-bg-base: #151517;
+    --dsw-alias-border-l1: #ffffff0f;
+    --dsw-alias-border-l2: #ffffff1f;
+    --dsw-alias-interactive-bg-hover: #ffffff14;
+    --dsw-radius-sm: 9px;
+    --dsw-radius-md: 13px;
+  }
   body { margin: 0; background: #121212; color: #f9fafb; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
   .frame { width: 520px; border-bottom: .5px solid rgba(255,255,255,.12); }
   .hdr {
@@ -122,14 +133,20 @@
   ok(wide.on === true, '宽容器下画成分段控件', String(wide.on))
   ok(list.getAttribute('data-ahig-tabs') === '1', '轨道打上 data-ahig-tabs')
   const heights = btns().map((b) => px(getComputedStyle(b).height))
-  ok(heights.every((h) => h === 26), '每个标签 26px 高', heights.join('/'))
+  ok(heights.every((h) => h === 24), '每个标签 24px 高（HIG 分段控件常规高）', heights.join('/'))
   const pads = btns().map((b) => px(getComputedStyle(b).paddingLeft))
-  ok(pads.every((p) => p === 12), '按钮拿到 12px 内边距', pads.join('/'))
+  ok(pads.every((p) => p === 10), '按钮拿到 10px 内边距', pads.join('/'))
   const lefts = btns().map((b) => Math.round(b.getBoundingClientRect().left))
   const rights = btns().map((b) => Math.round(b.getBoundingClientRect().right))
   let maxOverlap = 0
   for (let i = 1; i < lefts.length; i += 1) maxOverlap = Math.max(maxOverlap, rights[i - 1] - lefts[i])
   ok(maxOverlap <= 0, '相邻标签不重叠', 'maxOverlap=' + maxOverlap + 'px')
+  const widths = btns().map((b) => Math.round(b.getBoundingClientRect().width))
+  ok(widths.every((w) => w === widths[0]), '分段等宽（HIG：segments 默认等宽）', widths.join('/'))
+  const sel = list.querySelector('[role="tab"][aria-selected="true"]')
+  const selBg = getComputedStyle(sel).backgroundColor
+  const trackBg = getComputedStyle(list).backgroundColor
+  ok(selBg !== trackBg, '选中段有浮起底色（不是只改文字色）', selBg + ' vs ' + trackBg)
   const trackBox = list.getBoundingClientRect()
   const lastRight = rights[rights.length - 1]
   ok(trackBox.right >= lastRight - 1, '轨道包住最后一个标签', Math.round(trackBox.right) + ' vs ' + lastRight)

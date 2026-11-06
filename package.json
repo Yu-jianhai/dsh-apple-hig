@@ -1,6 +1,6 @@
 {
   "name": "dsh-apple-hig",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "description": "L0–L3 + 会话区拖拽重排（表现层，纯核心可单测）的 Apple HIG 校正层",
   "keywords": [
