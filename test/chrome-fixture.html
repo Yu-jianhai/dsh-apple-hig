@@ -23,7 +23,7 @@
     min-height: 76px;
     padding: 10px 28px 0 20px;
   }
-  .tabs { display: flex; flex-wrap: wrap; grid-column: 1/-1; gap: 16px 20px; margin-top: 10px; padding-left: 8px; }
+  .tabs { display: flex; flex-wrap: wrap; grid-column: 1/-1; gap: 16px 20px; margin-top: 10px; padding-left: 8px; width: 200px; }
   .viewTabs { display: flex; flex-wrap: wrap; gap: 32px; min-height: 25px; }
   .tab {
     position: relative;
@@ -128,6 +128,15 @@ function finish() {
 
   ok(tr.width <= 360, '轨道不超出容器', 'track=' + Math.round(tr.width))
   ok(getComputedStyle(track).display.includes('flex'), '轨道已换成分段控件', getComputedStyle(track).display)
+
+  // 轨道不能被父级 flex 压窄：实测宿主里它曾被压到 190px，而 5 个按钮要 284px，
+  // 结果整排溢出、文字互压。这里断言「轨道装得下自己的内容」。
+  {
+    const kids = [...track.children].filter((c) => c.getBoundingClientRect().width > 0)
+    const sum = kids.reduce((n, c) => n + c.getBoundingClientRect().width, 0) + (kids.length - 1) * 2
+    const tw = track.getBoundingClientRect().width
+    ok(tw >= sum - 2, '轨道装得下内容（未被压窄）', 'track=' + Math.round(tw) + ' need=' + Math.round(sum))
+  }
 
   // 页面上可能有第二个 [role="tablist"]（别的面板的标签条）；轨道规则必须只命中带
   // data-conversation-tabs 的那一个，否则会画出两块灰底叠在一起。
