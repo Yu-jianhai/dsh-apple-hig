@@ -69,6 +69,7 @@
     border-radius: 2px;
     background: none;
   }
+  .tabLabel { display: block; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabActive { color: #60a5fa; }
   .tabActive:after { background: #60a5fa; }
   .viewsMore { width: 22px; height: 22px; margin-top: -3px; border: none; background: none; color: #adb2b8; }
@@ -80,11 +81,11 @@
   <div class="hdr">
     <div class="tabs" id="tabsRow">
       <div class="viewTabs" role="tablist" data-conversation-tabs id="list">
-        <button type="button" role="tab" class="tab tabActive" aria-selected="true">对话</button>
-        <button type="button" role="tab" class="tab" aria-selected="false">轨迹</button>
-        <button type="button" role="tab" class="tab" aria-selected="false">上下文</button>
-        <button type="button" role="tab" class="tab" aria-selected="false">上下文</button>
-        <button type="button" role="tab" class="tab" aria-selected="false">编队</button>
+        <button type="button" role="tab" class="tab tabActive" aria-selected="true"><span class="tabLabel">对话</span></button>
+        <button type="button" role="tab" class="tab" aria-selected="false"><span class="tabLabel">轨迹</span></button>
+        <button type="button" role="tab" class="tab" aria-selected="false"><span class="tabLabel">上下文</span></button>
+        <button type="button" role="tab" class="tab" aria-selected="false"><span class="tabLabel">上下文</span></button>
+        <button type="button" role="tab" class="tab" aria-selected="false"><span class="tabLabel">编队</span></button>
       </div>
       <button type="button" class="viewsMore" id="more" aria-label="更多视图">…</button>
     </div>
@@ -152,6 +153,7 @@
   ok(maxOverlap <= 0, '相邻标签不重叠', 'maxOverlap=' + maxOverlap + 'px')
   const widths = btns().map((b) => Math.round(b.getBoundingClientRect().width))
   ok(widths.every((w) => w === widths[0]), '分段等宽（HIG：segments 默认等宽）', widths.join('/'))
+  ok(widths[0] <= 70, '分段宽度按真实文字量（不被 .tabLabel 的 max-width 撑到 88+24）', widths[0] + 'px')
   // 选中态由轨道上的 ::before 指示器表达（滑轨），不是选中按钮自带底色
   const trackBg = getComputedStyle(list).backgroundColor
   const ind = getComputedStyle(list, '::before')
